@@ -3,50 +3,13 @@ import { questions } from "./questions.js";
 
 const quizzes = new Map();
 
-async function sendMainMenu(chatId, env) {
-    await fetch(
-        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: "🏠 Main Menu\n\nChoose what you'd like to do:",
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: "📚 Today's Lesson",
-                                callback_data: "daily_lesson",
-                            },
-                            {
-                                text: "🧠 Quiz",
-                                callback_data: "quiz",
-                            },
-                        ],
-                        [
-                            {
-                                text: "💻 Challenge",
-                                callback_data: "challenge",
-                            },
-                            {
-                                text: "📊 My Progress",
-                                callback_data: "progress",
-                            },
-                        ],
-                        [
-                            {
-                                text: "📖 JS Reference",
-                                callback_data: "reference",
-                            },
-                        ],
-                    ],
-                },
-            }),
-        },
-    );
+async function getUser(chatId, env) {
+    return await env.learning_js_bot_db
+        .prepare(
+            "SELECT * FROM users WHERE telegram_id = ?",
+        )
+        .bind(String(chatId))
+        .first();
 }
 
 async function ensureProgress(chatId, env) {
@@ -56,6 +19,132 @@ async function ensureProgress(chatId, env) {
         )
         .bind(String(chatId))
         .run();
+}
+
+async function sendMessage(chatId, env, text, replyMarkup = null) {
+    const body = {
+        chat_id: chatId,
+        text,
+    };
+
+    if (replyMarkup) {
+        body.reply_markup = replyMarkup;
+    }
+
+    await fetch(
+        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        },
+    );
+}
+
+async function sendMainMenu(chatId, env) {
+    const user = await getUser(chatId, env);
+    const language = user?.language || "en";
+
+    const text =
+        language === "fa"
+            ? "🏠 منوی اصلی\n\nانتخاب کنید چه کاری می‌خواهید انجام دهید:"
+            : "🏠 Main Menu\n\nChoose what you'd like to do:";
+
+    await sendMessage(chatId, env, text, {
+        inline_keyboard:
+            language === "fa"
+                ? [
+                    [
+                        {
+                            text: "📚 درس امروز",
+                            callback_data: "daily_lesson",
+                        },
+                        {
+                            text: "🧠 آزمون",
+                            callback_data: "quiz",
+                        },
+                    ],
+                    [
+                        {
+                            text: "💻 چالش",
+                            callback_data: "challenge",
+                        },
+                        {
+                            text: "📊 پیشرفت من",
+                            callback_data: "progress",
+                        },
+                    ],
+                    [
+                        {
+                            text: "📖 مرجع JavaScript",
+                            callback_data: "reference",
+                        },
+                    ],
+                    [
+                        {
+                            text: "🌐 زبان",
+                            callback_data: "language",
+                        },
+                    ],
+                ]
+                : [
+                    [
+                        {
+                            text: "📚 Today's Lesson",
+                            callback_data: "daily_lesson",
+                        },
+                        {
+                            text: "🧠 Quiz",
+                            callback_data: "quiz",
+                        },
+                    ],
+                    [
+                        {
+                            text: "💻 Challenge",
+                            callback_data: "challenge",
+                        },
+                        {
+                            text: "📊 My Progress",
+                            callback_data: "progress",
+                        },
+                    ],
+                    [
+                        {
+                            text: "📖 JS Reference",
+                            callback_data: "reference",
+                        },
+                    ],
+                    [
+                        {
+                            text: "🌐 Language",
+                            callback_data: "language",
+                        },
+                    ],
+                ],
+    });
+}
+
+async function sendLanguageMenu(chatId, env, isStart = false) {
+    const text = isStart
+        ? "🤖 JavaScript Learning Bot\n\nWelcome! 👋\n\n🌐 Choose your language:"
+        : "🌐 Choose your language:";
+
+    await sendMessage(chatId, env, text, {
+        inline_keyboard: [
+            [
+                {
+                    text: "🇬🇧 English",
+                    callback_data: "language_en",
+                },
+                {
+                    text: "🇮🇷 فارسی",
+                    callback_data: "language_fa",
+                },
+            ],
+        ],
+    });
 }
 
 async function recordQuestionAnswer(chatId, isCorrect, env) {
@@ -81,7 +170,9 @@ async function recordQuestionAnswer(chatId, isCorrect, env) {
 export default {
     async fetch(request, env) {
         if (request.method !== "POST") {
-            return new Response("Learning JS Telegram Bot is alive!");
+            return new Response(
+                "Learning JS Telegram Bot is alive!",
+            );
         }
 
         try {
@@ -92,83 +183,136 @@ export default {
                 const callbackData = callbackQuery.data;
                 const chatId = callbackQuery.message.chat.id;
 
-                if (callbackData === "daily_lesson") {
-                    const user = await env.learning_js_bot_db
+                if (callbackData === "language") {
+                    await sendLanguageMenu(chatId, env);
+                    return new Response("OK");
+                }
+
+                if (
+                    callbackData === "language_en" ||
+                    callbackData === "language_fa"
+                ) {
+                    const language =
+                        callbackData === "language_fa"
+                            ? "fa"
+                            : "en";
+
+                    await env.learning_js_bot_db
                         .prepare(
-                            "SELECT current_lesson FROM users WHERE telegram_id = ?",
+                            "UPDATE users SET language = ? WHERE telegram_id = ?",
                         )
-                        .bind(String(chatId))
-                        .first();
+                        .bind(language, String(chatId))
+                        .run();
 
-                    if (!user) {
-                        return new Response("User not found");
-                    }
+                    const confirmation =
+                        language === "fa"
+                            ? "🇮🇷 زبان شما روی فارسی تنظیم شد."
+                            : "🇬🇧 Your language has been set to English.";
 
+                    await sendMessage(
+                        chatId,
+                        env,
+                        confirmation,
+                    );
+
+                    await sendMainMenu(chatId, env);
+
+                    return new Response("OK");
+                }
+
+                const user = await getUser(chatId, env);
+
+                if (!user) {
+                    return new Response("User not found");
+                }
+
+                const language = user.language || "en";
+
+                if (callbackData === "daily_lesson") {
                     const lesson = lessons.find(
-                        (lesson) => lesson.id === user.current_lesson,
+                        (lesson) =>
+                            lesson.id === user.current_lesson,
                     );
 
                     if (!lesson) {
-                        await fetch(
-                            `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    chat_id: chatId,
-                                    text:
-                                        "🎉 Congratulations!\n\n" +
-                                        "You've completed all available lessons!",
-                                }),
-                            },
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "🎉 تبریک!\n\nشما تمام درس‌های موجود را به پایان رسانده‌اید!"
+                                : "🎉 Congratulations!\n\nYou've completed all available lessons!",
                         );
 
                         await sendMainMenu(chatId, env);
-
                         return new Response("OK");
                     }
 
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+                    const title =
+                        language === "fa"
+                            ? lesson.faTitle
+                            : lesson.title;
+
+                    const content =
+                        language === "fa"
+                            ? lesson.faContent
+                            : lesson.content;
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        `📚 ${language === "fa"
+                            ? "درس امروز"
+                            : "Today's Lesson"
+                        }\n\n${title}\n\n${content}`,
                         {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text: `📚 Today's Lesson\n\n${lesson.title}\n\n${lesson.content}`,
-                                reply_markup: {
-                                    inline_keyboard: [
-                                        [
-                                            {
-                                                text: "❓ Quick Question",
-                                                callback_data: `question_${lesson.id}`,
-                                            },
-                                        ],
-                                    ],
-                                },
-                            }),
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "❓ سؤال کوتاه"
+                                                : "❓ Quick Question",
+                                        callback_data: `question_${lesson.id}`,
+                                    },
+                                ],
+                            ],
                         },
                     );
                 }
 
                 if (callbackData.startsWith("question_")) {
-                    const lessonId = Number(callbackData.split("_")[1]);
+                    const lessonId = Number(
+                        callbackData.split("_")[1],
+                    );
 
                     const lessonQuestions = questions.filter(
-                        (question) => question.lessonId === lessonId,
+                        (question) =>
+                            question.lessonId === lessonId,
                     );
 
                     if (lessonQuestions.length === 0) {
                         return new Response("OK");
                     }
 
-                    const question = lessonQuestions[0];
+                    const question =
+                        lessonQuestions[
+                        Math.floor(
+                            Math.random() *
+                            lessonQuestions.length,
+                        )
+                        ];
 
-                    const optionButtons = question.options.map(
+                    const options =
+                        language === "fa"
+                            ? question.faOptions
+                            : question.options;
+
+                    const questionText =
+                        language === "fa"
+                            ? question.faQuestion
+                            : question.question;
+
+                    const optionButtons = options.map(
                         (option, index) => [
                             {
                                 text: option,
@@ -177,20 +321,15 @@ export default {
                         ],
                     );
 
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+                    await sendMessage(
+                        chatId,
+                        env,
+                        `❓ ${language === "fa"
+                            ? "سؤال کوتاه"
+                            : "Quick Question"
+                        }\n\n${questionText}`,
                         {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text: `❓ Quick Question\n\n${question.question}`,
-                                reply_markup: {
-                                    inline_keyboard: optionButtons,
-                                },
-                            }),
+                            inline_keyboard: optionButtons,
                         },
                     );
                 }
@@ -202,7 +341,8 @@ export default {
                     const answerIndex = Number(parts[2]);
 
                     const question = questions.find(
-                        (question) => question.id === questionId,
+                        (question) =>
+                            question.id === questionId,
                     );
 
                     if (!question) {
@@ -219,62 +359,46 @@ export default {
                     );
 
                     const resultText = isCorrect
-                        ? "✅ Correct!\n\n"
-                        : "❌ Incorrect!\n\n";
+                        ? language === "fa"
+                            ? "✅ درست!\n\n"
+                            : "✅ Correct!\n\n"
+                        : language === "fa"
+                            ? "❌ اشتباه!\n\n"
+                            : "❌ Incorrect!\n\n";
 
-                    const user = await env.learning_js_bot_db
-                        .prepare(
-                            "SELECT current_lesson FROM users WHERE telegram_id = ?",
-                        )
-                        .bind(String(chatId))
-                        .first();
+                    const explanation =
+                        language === "fa"
+                            ? question.faExplanation
+                            : question.explanation;
 
-                    if (!user) {
-                        return new Response("User not found");
-                    }
-
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+                    await sendMessage(
+                        chatId,
+                        env,
+                        resultText + explanation,
                         {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text:
-                                    resultText +
-                                    question.explanation,
-                                reply_markup: {
-                                    inline_keyboard: [
-                                        [
-                                            {
-                                                text: "✅ Complete Lesson",
-                                                callback_data: `complete_lesson_${user.current_lesson}`,
-                                            },
-                                        ],
-                                    ],
-                                },
-                            }),
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "✅ تکمیل درس"
+                                                : "✅ Complete Lesson",
+                                        callback_data: `complete_lesson_${user.current_lesson}`,
+                                    },
+                                ],
+                            ],
                         },
                     );
                 }
 
-                if (callbackData.startsWith("complete_lesson_")) {
+                if (
+                    callbackData.startsWith(
+                        "complete_lesson_",
+                    )
+                ) {
                     const lessonId = Number(
                         callbackData.split("_")[2],
                     );
-
-                    const user = await env.learning_js_bot_db
-                        .prepare(
-                            "SELECT current_lesson FROM users WHERE telegram_id = ?",
-                        )
-                        .bind(String(chatId))
-                        .first();
-
-                    if (!user) {
-                        return new Response("User not found");
-                    }
 
                     if (user.current_lesson !== lessonId) {
                         return new Response("OK");
@@ -299,37 +423,31 @@ export default {
                             )
                             .run();
 
-                        await fetch(
-                            `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    chat_id: chatId,
-                                    text:
-                                        "🎉 Lesson Complete!\n\n" +
-                                        `You've completed "${currentLesson.title}".\n\n` +
-                                        `📚 Next lesson: ${nextLesson.title}`,
-                                }),
-                            },
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? `🎉 درس کامل شد!\n\nشما درس «${currentLesson.faTitle}» را به پایان رساندید.\n\n📚 درس بعدی: ${nextLesson.faTitle}`
+                                : `🎉 Lesson Complete!\n\nYou've completed "${currentLesson.title}".\n\n📚 Next lesson: ${nextLesson.title}`,
                         );
                     } else {
-                        await fetch(
-                            `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    chat_id: chatId,
-                                    text:
-                                        "🎉 Congratulations!\n\n" +
-                                        "You've completed all available lessons!",
-                                }),
-                            },
+                        // Last lesson completed
+                        await env.learning_js_bot_db
+                            .prepare(
+                                "UPDATE users SET current_lesson = ? WHERE telegram_id = ?",
+                            )
+                            .bind(
+                                lessons.length + 1,
+                                String(chatId),
+                            )
+                            .run();
+
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? `🎉 تبریک!\n\nشما درس «${currentLesson.faTitle}» را به پایان رساندید.\n\n🏆 شما تمام درس‌های موجود را به پایان رسانده‌اید!`
+                                : `🎉 Congratulations!\n\nYou've completed "${currentLesson.title}".\n\n🏆 You've completed all available lessons!`,
                         );
                     }
 
@@ -337,11 +455,39 @@ export default {
                 }
 
                 if (callbackData === "quiz") {
-                    const shuffledQuestions = [...questions].sort(
+                    const completedLessonIds = lessons
+                        .filter(
+                            (lesson) =>
+                                lesson.id < user.current_lesson,
+                        )
+                        .map((lesson) => lesson.id);
+
+                    const quizPool = questions.filter(
+                        (question) =>
+                            completedLessonIds.includes(
+                                question.lessonId,
+                            ),
+                    );
+
+                    if (quizPool.length === 0) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "🧠 آزمون\n\nبرای شرکت در آزمون باید حداقل یک درس را کامل کنید. 📚"
+                                : "🧠 Quiz\n\nYou need to complete at least one lesson before taking a quiz. 📚",
+                        );
+
+                        await sendMainMenu(chatId, env);
+                        return new Response("OK");
+                    }
+
+                    const shuffledQuestions = [...quizPool].sort(
                         () => Math.random() - 0.5,
                     );
 
-                    const quizQuestions = shuffledQuestions.slice(0, 5);
+                    const quizQuestions =
+                        shuffledQuestions.slice(0, 5);
 
                     quizzes.set(chatId, {
                         questions: quizQuestions,
@@ -352,7 +498,17 @@ export default {
                     const quiz = quizzes.get(chatId);
                     const question = quiz.questions[0];
 
-                    const optionButtons = question.options.map(
+                    const options =
+                        language === "fa"
+                            ? question.faOptions
+                            : question.options;
+
+                    const questionText =
+                        language === "fa"
+                            ? question.faQuestion
+                            : question.question;
+
+                    const optionButtons = options.map(
                         (option, index) => [
                             {
                                 text: option,
@@ -361,28 +517,23 @@ export default {
                         ],
                     );
 
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `🧠 آزمون JavaScript\n\nسؤال 1/${quiz.questions.length}\n\n${questionText}`
+                            : `🧠 JavaScript Quiz\n\nQuestion 1/${quiz.questions.length}\n\n${questionText}`,
                         {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text:
-                                    `🧠 JavaScript Quiz\n\n` +
-                                    `Question 1/${quiz.questions.length}\n\n` +
-                                    question.question,
-                                reply_markup: {
-                                    inline_keyboard: optionButtons,
-                                },
-                            }),
+                            inline_keyboard: optionButtons,
                         },
                     );
                 }
 
-                if (callbackData.startsWith("quiz_answer_")) {
+                if (
+                    callbackData.startsWith(
+                        "quiz_answer_",
+                    )
+                ) {
                     const parts = callbackData.split("_");
 
                     const questionId = Number(parts[2]);
@@ -395,7 +546,8 @@ export default {
                     }
 
                     const question = quiz.questions.find(
-                        (question) => question.id === questionId,
+                        (question) =>
+                            question.id === questionId,
                     );
 
                     if (!question) {
@@ -418,8 +570,17 @@ export default {
                     quiz.currentQuestion++;
 
                     const resultText = isCorrect
-                        ? "✅ Correct!\n\n"
-                        : "❌ Incorrect!\n\n";
+                        ? language === "fa"
+                            ? "✅ درست!\n\n"
+                            : "✅ Correct!\n\n"
+                        : language === "fa"
+                            ? "❌ اشتباه!\n\n"
+                            : "❌ Incorrect!\n\n";
+
+                    const explanation =
+                        language === "fa"
+                            ? question.faExplanation
+                            : question.explanation;
 
                     if (
                         quiz.currentQuestion >=
@@ -432,22 +593,12 @@ export default {
                             .bind(String(chatId))
                             .run();
 
-                        await fetch(
-                            `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    chat_id: chatId,
-                                    text:
-                                        resultText +
-                                        question.explanation +
-                                        `\n\n🏆 Quiz Complete!\n\n` +
-                                        `Score: ${quiz.score}/${quiz.questions.length}`,
-                                }),
-                            },
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? `${resultText}${explanation}\n\n🏆 آزمون تمام شد!\n\nامتیاز: ${quiz.score}/${quiz.questions.length}`
+                                : `${resultText}${explanation}\n\n🏆 Quiz Complete!\n\nScore: ${quiz.score}/${quiz.questions.length}`,
                         );
 
                         quizzes.delete(chatId);
@@ -460,8 +611,18 @@ export default {
                     const nextQuestion =
                         quiz.questions[quiz.currentQuestion];
 
+                    const options =
+                        language === "fa"
+                            ? nextQuestion.faOptions
+                            : nextQuestion.options;
+
+                    const questionText =
+                        language === "fa"
+                            ? nextQuestion.faQuestion
+                            : nextQuestion.question;
+
                     const optionButtons =
-                        nextQuestion.options.map(
+                        options.map(
                             (option, index) => [
                                 {
                                     text: option,
@@ -470,43 +631,26 @@ export default {
                             ],
                         );
 
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `${resultText}${explanation}\n\n🧠 سؤال ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n${questionText}`
+                            : `${resultText}${explanation}\n\n🧠 Question ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n${questionText}`,
                         {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text:
-                                    resultText +
-                                    question.explanation +
-                                    `\n\n🧠 Question ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n` +
-                                    nextQuestion.question,
-                                reply_markup: {
-                                    inline_keyboard: optionButtons,
-                                },
-                            }),
+                            inline_keyboard:
+                                optionButtons,
                         },
                     );
                 }
 
                 if (callbackData === "challenge") {
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text:
-                                    "💻 Challenge\n\n" +
-                                    "The coding challenge system is coming soon! 🔥",
-                            }),
-                        },
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "💻 چالش\n\nسیستم چالش‌های کدنویسی به‌زودی اضافه می‌شود! 🔥"
+                            : "💻 Challenge\n\nThe coding challenge system is coming soon! 🔥",
                     );
 
                     await sendMainMenu(chatId, env);
@@ -515,36 +659,32 @@ export default {
                 if (callbackData === "progress") {
                     await ensureProgress(chatId, env);
 
-                    const user = await env.learning_js_bot_db
-                        .prepare(
-                            "SELECT current_lesson FROM users WHERE telegram_id = ?",
-                        )
-                        .bind(String(chatId))
-                        .first();
+                    const progress =
+                        await env.learning_js_bot_db
+                            .prepare(
+                                "SELECT questions_answered, correct_answers, quizzes_completed FROM progress WHERE telegram_id = ?",
+                            )
+                            .bind(String(chatId))
+                            .first();
 
-                    const progress = await env.learning_js_bot_db
-                        .prepare(
-                            "SELECT questions_answered, correct_answers, quizzes_completed FROM progress WHERE telegram_id = ?",
-                        )
-                        .bind(String(chatId))
-                        .first();
-
-                    if (!user || !progress) {
-                        return new Response("User not found");
+                    if (!progress) {
+                        return new Response("Progress not found");
                     }
 
-                    const completedLessons =
-                        Math.max(user.current_lesson - 1, 0);
+                    const completedLessons = Math.max(
+                        user.current_lesson - 1,
+                        0,
+                    );
 
                     const totalLessons = lessons.length;
 
                     const accuracy =
                         progress.questions_answered > 0
                             ? Math.round(
-                                  (progress.correct_answers /
-                                      progress.questions_answered) *
-                                      100,
-                              )
+                                (progress.correct_answers /
+                                    progress.questions_answered) *
+                                100,
+                            )
                             : 0;
 
                     const currentLesson = lessons.find(
@@ -553,50 +693,44 @@ export default {
                     );
 
                     const progressText =
-                        "📊 My Progress\n\n" +
-                        `📚 Lessons completed: ${completedLessons}/${totalLessons}\n` +
-                        `🎯 Current lesson: ${
-                            currentLesson
+                        language === "fa"
+                            ? "📊 پیشرفت من\n\n" +
+                            `📚 درس‌های تکمیل‌شده: ${completedLessons}/${totalLessons}\n` +
+                            `🎯 درس فعلی: ${currentLesson
+                                ? currentLesson.faTitle
+                                : "تمام درس‌ها تکمیل شده‌اند!"
+                            }\n\n` +
+                            `❓ سؤالات پاسخ داده‌شده: ${progress.questions_answered}\n` +
+                            `✅ پاسخ‌های صحیح: ${progress.correct_answers}\n` +
+                            `📈 دقت: ${accuracy}%\n` +
+                            `🏆 آزمون‌های تکمیل‌شده: ${progress.quizzes_completed}`
+                            : "📊 My Progress\n\n" +
+                            `📚 Lessons completed: ${completedLessons}/${totalLessons}\n` +
+                            `🎯 Current lesson: ${currentLesson
                                 ? currentLesson.title
                                 : "All lessons completed!"
-                        }\n\n` +
-                        `❓ Questions answered: ${progress.questions_answered}\n` +
-                        `✅ Correct answers: ${progress.correct_answers}\n` +
-                        `📈 Accuracy: ${accuracy}%\n` +
-                        `🏆 Quizzes completed: ${progress.quizzes_completed}`;
+                            }\n\n` +
+                            `❓ Questions answered: ${progress.questions_answered}\n` +
+                            `✅ Correct answers: ${progress.correct_answers}\n` +
+                            `📈 Accuracy: ${accuracy}%\n` +
+                            `🏆 Quizzes completed: ${progress.quizzes_completed}`;
 
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text: progressText,
-                            }),
-                        },
+                    await sendMessage(
+                        chatId,
+                        env,
+                        progressText,
                     );
 
                     await sendMainMenu(chatId, env);
                 }
 
                 if (callbackData === "reference") {
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text:
-                                    "📖 JS Reference\n\n" +
-                                    "The JavaScript reference is coming soon! 📚",
-                            }),
-                        },
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "📖 مرجع JavaScript\n\nمرجع JavaScript به‌زودی اضافه می‌شود! 📚"
+                            : "📖 JS Reference\n\nThe JavaScript reference is coming soon! 📚",
                     );
 
                     await sendMainMenu(chatId, env);
@@ -632,63 +766,26 @@ export default {
 
                 await ensureProgress(chatId, env);
 
-                await fetch(
-                    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            chat_id: chatId,
-                            text:
-                                "🤖 JavaScript Learning Bot\n\n" +
-                                "Welcome! 👋\n\n" +
-                                "I'm your personal JavaScript learning companion.\n\n" +
-                                "Choose what you'd like to do:",
-                            reply_markup: {
-                                inline_keyboard: [
-                                    [
-                                        {
-                                            text: "📚 Today's Lesson",
-                                            callback_data: "daily_lesson",
-                                        },
-                                        {
-                                            text: "🧠 Quiz",
-                                            callback_data: "quiz",
-                                        },
-                                    ],
-                                    [
-                                        {
-                                            text: "💻 Challenge",
-                                            callback_data: "challenge",
-                                        },
-                                        {
-                                            text: "📊 My Progress",
-                                            callback_data: "progress",
-                                        },
-                                    ],
-                                    [
-                                        {
-                                            text: "📖 JS Reference",
-                                            callback_data: "reference",
-                                        },
-                                    ],
-                                ],
-                            },
-                        }),
-                    },
+                await sendLanguageMenu(
+                    chatId,
+                    env,
+                    true,
                 );
             }
 
             return new Response("OK");
         } catch (error) {
             console.error(error);
-            return new Response("Error", { status: 500 });
+
+            return new Response("Error", {
+                status: 500,
+            });
         }
     },
 
     async scheduled(event, env, ctx) {
-        console.log(`Scheduled event fired at ${event.cron}`);
+        console.log(
+            `Scheduled event fired at ${event.cron}`,
+        );
     },
 };

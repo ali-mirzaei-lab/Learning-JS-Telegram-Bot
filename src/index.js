@@ -329,6 +329,23 @@ export default {
             const message = update.message.text;
 
             if (message === "/start") {
+                const existingUser =
+                    await env.learning_js_bot_db
+                        .prepare(
+                            "SELECT id FROM users WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .first();
+
+                if (!existingUser) {
+                    await env.learning_js_bot_db
+                        .prepare(
+                            "INSERT INTO users (telegram_id) VALUES (?)",
+                        )
+                        .bind(String(chatId))
+                        .run();
+                }
+
                 await fetch(
                     `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
                     {

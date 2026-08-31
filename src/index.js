@@ -3,6 +3,81 @@ import { questions } from "./questions.js";
 
 const quizzes = new Map();
 
+async function sendMainMenu(chatId, env) {
+    await fetch(
+        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: "🏠 Main Menu\n\nChoose what you'd like to do:",
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: "📚 Today's Lesson",
+                                callback_data: "daily_lesson",
+                            },
+                            {
+                                text: "🧠 Quiz",
+                                callback_data: "quiz",
+                            },
+                        ],
+                        [
+                            {
+                                text: "💻 Challenge",
+                                callback_data: "challenge",
+                            },
+                            {
+                                text: "📊 My Progress",
+                                callback_data: "progress",
+                            },
+                        ],
+                        [
+                            {
+                                text: "📖 JS Reference",
+                                callback_data: "reference",
+                            },
+                        ],
+                    ],
+                },
+            }),
+        },
+    );
+}
+
+async function ensureProgress(chatId, env) {
+    await env.learning_js_bot_db
+        .prepare(
+            "INSERT OR IGNORE INTO progress (telegram_id) VALUES (?)",
+        )
+        .bind(String(chatId))
+        .run();
+}
+
+async function recordQuestionAnswer(chatId, isCorrect, env) {
+    await ensureProgress(chatId, env);
+
+    if (isCorrect) {
+        await env.learning_js_bot_db
+            .prepare(
+                "UPDATE progress SET questions_answered = questions_answered + 1, correct_answers = correct_answers + 1 WHERE telegram_id = ?",
+            )
+            .bind(String(chatId))
+            .run();
+    } else {
+        await env.learning_js_bot_db
+            .prepare(
+                "UPDATE progress SET questions_answered = questions_answered + 1 WHERE telegram_id = ?",
+            )
+            .bind(String(chatId))
+            .run();
+    }
+}
+
 export default {
     async fetch(request, env) {
         if (request.method !== "POST") {
@@ -34,7 +109,25 @@ export default {
                     );
 
                     if (!lesson) {
-                        return new Response("Lesson not found");
+                        await fetch(
+                            `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    chat_id: chatId,
+                                    text:
+                                        "🎉 Congratulations!\n\n" +
+                                        "You've completed all available lessons!",
+                                }),
+                            },
+                        );
+
+                        await sendMainMenu(chatId, env);
+
+                        return new Response("OK");
                     }
 
                     await fetch(
@@ -118,6 +211,12 @@ export default {
 
                     const isCorrect =
                         answerIndex === question.correctAnswer;
+
+                    await recordQuestionAnswer(
+                        chatId,
+                        isCorrect,
+                        env,
+                    );
 
                     const resultText = isCorrect
                         ? "✅ Correct!\n\n"
@@ -233,6 +332,8 @@ export default {
                             },
                         );
                     }
+
+                    await sendMainMenu(chatId, env);
                 }
 
                 if (callbackData === "quiz") {
@@ -304,6 +405,12 @@ export default {
                     const isCorrect =
                         answerIndex === question.correctAnswer;
 
+                    await recordQuestionAnswer(
+                        chatId,
+                        isCorrect,
+                        env,
+                    );
+
                     if (isCorrect) {
                         quiz.score++;
                     }
@@ -318,6 +425,13 @@ export default {
                         quiz.currentQuestion >=
                         quiz.questions.length
                     ) {
+                        await env.learning_js_bot_db
+                            .prepare(
+                                "UPDATE progress SET quizzes_completed = quizzes_completed + 1 WHERE telegram_id = ?",
+                            )
+                            .bind(String(chatId))
+                            .run();
+
                         await fetch(
                             `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
                             {
@@ -337,6 +451,8 @@ export default {
                         );
 
                         quizzes.delete(chatId);
+
+                        await sendMainMenu(chatId, env);
 
                         return new Response("OK");
                     }
@@ -392,9 +508,63 @@ export default {
                             }),
                         },
                     );
+
+                    await sendMainMenu(chatId, env);
                 }
 
                 if (callbackData === "progress") {
+                    await ensureProgress(chatId, env);
+
+                    const user = await env.learning_js_bot_db
+                        .prepare(
+                            "SELECT current_lesson FROM users WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .first();
+
+                    const progress = await env.learning_js_bot_db
+                        .prepare(
+                            "SELECT questions_answered, correct_answers, quizzes_completed FROM progress WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .first();
+
+                    if (!user || !progress) {
+                        return new Response("User not found");
+                    }
+
+                    const completedLessons =
+                        Math.max(user.current_lesson - 1, 0);
+
+                    const totalLessons = lessons.length;
+
+                    const accuracy =
+                        progress.questions_answered > 0
+                            ? Math.round(
+                                  (progress.correct_answers /
+                                      progress.questions_answered) *
+                                      100,
+                              )
+                            : 0;
+
+                    const currentLesson = lessons.find(
+                        (lesson) =>
+                            lesson.id === user.current_lesson,
+                    );
+
+                    const progressText =
+                        "📊 My Progress\n\n" +
+                        `📚 Lessons completed: ${completedLessons}/${totalLessons}\n` +
+                        `🎯 Current lesson: ${
+                            currentLesson
+                                ? currentLesson.title
+                                : "All lessons completed!"
+                        }\n\n` +
+                        `❓ Questions answered: ${progress.questions_answered}\n` +
+                        `✅ Correct answers: ${progress.correct_answers}\n` +
+                        `📈 Accuracy: ${accuracy}%\n` +
+                        `🏆 Quizzes completed: ${progress.quizzes_completed}`;
+
                     await fetch(
                         `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
                         {
@@ -404,12 +574,12 @@ export default {
                             },
                             body: JSON.stringify({
                                 chat_id: chatId,
-                                text:
-                                    "📊 My Progress\n\n" +
-                                    "Your progress system is coming soon! 📈",
+                                text: progressText,
                             }),
                         },
                     );
+
+                    await sendMainMenu(chatId, env);
                 }
 
                 if (callbackData === "reference") {
@@ -428,6 +598,8 @@ export default {
                             }),
                         },
                     );
+
+                    await sendMainMenu(chatId, env);
                 }
 
                 return new Response("OK");
@@ -457,6 +629,8 @@ export default {
                         .bind(String(chatId))
                         .run();
                 }
+
+                await ensureProgress(chatId, env);
 
                 await fetch(
                     `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,

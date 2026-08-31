@@ -18,7 +18,24 @@ export default {
                 const chatId = callbackQuery.message.chat.id;
 
                 if (callbackData === "daily_lesson") {
-                    const lesson = lessons[0];
+                    const user = await env.learning_js_bot_db
+                        .prepare(
+                            "SELECT current_lesson FROM users WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .first();
+
+                    if (!user) {
+                        return new Response("User not found");
+                    }
+
+                    const lesson = lessons.find(
+                        (lesson) => lesson.id === user.current_lesson,
+                    );
+
+                    if (!lesson) {
+                        return new Response("Lesson not found");
+                    }
 
                     await fetch(
                         `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
@@ -106,6 +123,17 @@ export default {
                         ? "✅ Correct!\n\n"
                         : "❌ Incorrect!\n\n";
 
+                    const user = await env.learning_js_bot_db
+                        .prepare(
+                            "SELECT current_lesson FROM users WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .first();
+
+                    if (!user) {
+                        return new Response("User not found");
+                    }
+
                     await fetch(
                         `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
                         {
@@ -118,9 +146,93 @@ export default {
                                 text:
                                     resultText +
                                     question.explanation,
+                                reply_markup: {
+                                    inline_keyboard: [
+                                        [
+                                            {
+                                                text: "✅ Complete Lesson",
+                                                callback_data: `complete_lesson_${user.current_lesson}`,
+                                            },
+                                        ],
+                                    ],
+                                },
                             }),
                         },
                     );
+                }
+
+                if (callbackData.startsWith("complete_lesson_")) {
+                    const lessonId = Number(
+                        callbackData.split("_")[2],
+                    );
+
+                    const user = await env.learning_js_bot_db
+                        .prepare(
+                            "SELECT current_lesson FROM users WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .first();
+
+                    if (!user) {
+                        return new Response("User not found");
+                    }
+
+                    if (user.current_lesson !== lessonId) {
+                        return new Response("OK");
+                    }
+
+                    const currentLesson = lessons.find(
+                        (lesson) => lesson.id === lessonId,
+                    );
+
+                    const nextLesson = lessons.find(
+                        (lesson) => lesson.id === lessonId + 1,
+                    );
+
+                    if (nextLesson) {
+                        await env.learning_js_bot_db
+                            .prepare(
+                                "UPDATE users SET current_lesson = ? WHERE telegram_id = ?",
+                            )
+                            .bind(
+                                nextLesson.id,
+                                String(chatId),
+                            )
+                            .run();
+
+                        await fetch(
+                            `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    chat_id: chatId,
+                                    text:
+                                        "🎉 Lesson Complete!\n\n" +
+                                        `You've completed "${currentLesson.title}".\n\n` +
+                                        `📚 Next lesson: ${nextLesson.title}`,
+                                }),
+                            },
+                        );
+                    } else {
+                        await fetch(
+                            `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    chat_id: chatId,
+                                    text:
+                                        "🎉 Congratulations!\n\n" +
+                                        "You've completed all available lessons!",
+                                }),
+                            },
+                        );
+                    }
                 }
 
                 if (callbackData === "quiz") {

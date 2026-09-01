@@ -136,8 +136,14 @@ async function sendMainMenu(chatId, env) {
                     ],
                     [
                         {
-                            text: "📖 مرجع JavaScript",
+                            text: "📖 JS Reference",
                             callback_data: "reference",
+                        },
+                    ],
+                    [
+                        {
+                            text: "📚 همه درس‌ها",
+                            callback_data: "all_lessons",
                         },
                     ],
                     [
@@ -172,6 +178,12 @@ async function sendMainMenu(chatId, env) {
                         {
                             text: "📖 JS Reference",
                             callback_data: "reference",
+                        },
+                    ],
+                    [
+                        {
+                            text: "📚 All Lessons",
+                            callback_data: "all_lessons",
                         },
                     ],
                     [
@@ -241,6 +253,17 @@ export default {
                 const callbackData = callbackQuery.data;
                 const chatId = callbackQuery.message.chat.id;
 
+                if (callbackData === "main_menu") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    await sendMainMenu(chatId, env);
+                    return new Response("OK");
+                }
+
                 if (callbackData === "language") {
                     await sendLanguageMenu(chatId, env);
                     return new Response("OK");
@@ -285,6 +308,54 @@ export default {
                 }
 
                 const language = user.language || "en";
+
+                if (callbackData === "all_lessons") {
+
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const availableLessons = lessons.filter(
+                        (lesson) => lesson.id <= user.current_lesson,
+                    );
+
+                    const lessonButtons = availableLessons.map(
+                        (lesson) => [
+                            {
+                                text:
+                                    language === "fa"
+                                        ? `${lesson.id}️⃣ ${lesson.faTitle}`
+                                        : `${lesson.id}️⃣ ${lesson.title}`,
+                                callback_data: `lesson_${lesson.id}`,
+                            },
+                        ],
+                    );
+
+                    lessonButtons.push([
+                        {
+                            text:
+                                language === "fa"
+                                    ? "🏠 منوی اصلی"
+                                    : "🏠 Main Menu",
+                            callback_data: "main_menu",
+                        },
+                    ]);
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "📚 همه درس‌ها\n\nیک درس را برای مشاهده انتخاب کنید:"
+                            : "📚 All Lessons\n\nChoose a lesson to review:",
+                        {
+                            inline_keyboard: lessonButtons,
+                        },
+                    );
+
+                    return new Response("OK");
+                }
 
                 if (callbackData === "daily_lesson") {
                     const lesson = lessons.find(
@@ -336,6 +407,87 @@ export default {
                             ],
                         },
                     );
+                }
+
+                await removeMessageKeyboard(
+                    chatId,
+                    callbackQuery.message.message_id,
+                    env,
+                );
+
+                if (callbackData.startsWith("lesson_")) {
+                    const lessonId = Number(
+                        callbackData.split("_")[1],
+                    );
+
+                    if (lessonId > user.current_lesson) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "🔒 این درس هنوز برای شما در دسترس نیست."
+                                : "🔒 This lesson is not available to you yet.",
+                        );
+
+                        return new Response("OK");
+                    }
+
+                    const lesson = lessons.find(
+                        (lesson) => lesson.id === lessonId,
+                    );
+
+                    if (!lesson) {
+                        return new Response("OK");
+                    }
+
+                    const title =
+                        language === "fa"
+                            ? lesson.faTitle
+                            : lesson.title;
+
+                    const content =
+                        language === "fa"
+                            ? lesson.faContent
+                            : lesson.content;
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        `📚 ${title}\n\n${content}`,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "❓ سؤال کوتاه"
+                                                : "❓ Quick Question",
+                                        callback_data: `question_${lesson.id}`,
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "📚 همه درس‌ها"
+                                                : "📚 All Lessons",
+                                        callback_data: "all_lessons",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
                 }
 
                 if (callbackData.startsWith("question_")) {
@@ -429,7 +581,7 @@ export default {
                             ? question.faExplanation
                             : question.explanation;
 
-                    await sendMessage(
+                    const resultMessageId = await sendMessage(
                         chatId,
                         env,
                         resultText + explanation,
@@ -447,6 +599,14 @@ export default {
                             ],
                         },
                     );
+
+                    if (resultMessageId && callbackQuery.message) {
+                        await removeMessageKeyboard(
+                            chatId,
+                            callbackQuery.message.message_id,
+                            env,
+                        );
+                    }
                 }
 
                 if (
@@ -461,6 +621,12 @@ export default {
                     if (user.current_lesson !== lessonId) {
                         return new Response("OK");
                     }
+
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
 
                     const currentLesson = lessons.find(
                         (lesson) => lesson.id === lessonId,

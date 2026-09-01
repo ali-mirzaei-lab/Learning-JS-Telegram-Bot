@@ -1,6 +1,7 @@
 import { lessons } from "./lessons.js";
 import { questions } from "./questions.js";
 import { references } from "./reference.js";
+import { challenges } from "./challenges.js";
 
 async function getUser(chatId, env) {
     return await env.learning_js_bot_db
@@ -58,6 +59,53 @@ async function deleteQuizSession(chatId, env) {
         .prepare("DELETE FROM quiz_sessions WHERE telegram_id = ?")
         .bind(String(chatId))
         .run();
+}
+
+async function getChallengeProgress(chatId, env) {
+    const result = await env.learning_js_bot_db
+        .prepare(
+            `SELECT *
+             FROM challenge_progress
+             WHERE telegram_id = ?`,
+        )
+        .bind(String(chatId))
+        .first();
+
+    return result;
+}
+
+async function ensureChallengeProgress(chatId, env) {
+    await env.learning_js_bot_db
+        .prepare(
+            `INSERT OR IGNORE INTO challenge_progress
+             (telegram_id)
+             VALUES (?)`,
+        )
+        .bind(String(chatId))
+        .run();
+
+    return getChallengeProgress(chatId, env);
+}
+
+function getTodayDate() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function getDailyChallenge() {
+    const today = getTodayDate();
+
+    const startDate = new Date("2026-01-01T00:00:00Z");
+    const currentDate = new Date(`${today}T00:00:00Z`);
+
+    const daysSinceStart = Math.floor(
+        (currentDate - startDate) / (1000 * 60 * 60 * 24),
+    );
+
+    const challengeIndex =
+        ((daysSinceStart % challenges.length) + challenges.length) %
+        challenges.length;
+
+    return challenges[challengeIndex];
 }
 
 async function sendMessage(
@@ -172,7 +220,7 @@ async function sendMainMenu(chatId, env) {
                     ],
                     [
                         {
-                            text: "💻 Challenge",
+                            text: "🧩 Daily Challenge",
                             callback_data: "challenge",
                         },
                         {
@@ -429,6 +477,12 @@ export default {
                 }
 
                 if (callbackData === "daily_lesson") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
                     const lesson = lessons.find(
                         (lesson) =>
                             lesson.id === user.current_lesson,
@@ -478,6 +532,8 @@ export default {
                             ],
                         },
                     );
+
+                    return new Response("OK");
                 }
 
                 await removeMessageKeyboard(
@@ -1274,15 +1330,259 @@ export default {
                 }
 
                 if (callbackData === "challenge") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    const challenge = getDailyChallenge();
+                    const challengeProgress = await ensureChallengeProgress(
+                        chatId,
+                        env,
+                    );
+
+                    const today = getTodayDate();
+
+                    if (challengeProgress.last_completed_date === today) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "🧩 چالش امروز را قبلاً انجام داده‌اید.\n\n" +
+                                `🔥 استریک فعلی: ${challengeProgress.current_streak}\n` +
+                                `🏆 بهترین استریک: ${challengeProgress.best_streak}\n` +
+                                `✅ تعداد چالش‌های انجام‌شده: ${challengeProgress.total_completed}`
+                                : "🧩 You already completed today's challenge.\n\n" +
+                                `🔥 Current streak: ${challengeProgress.current_streak}\n` +
+                                `🏆 Best streak: ${challengeProgress.best_streak}\n` +
+                                `✅ Challenges completed: ${challengeProgress.total_completed}`,
+                            {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text:
+                                                language === "fa"
+                                                    ? "🏠 منوی اصلی"
+                                                    : "🏠 Main Menu",
+                                            callback_data: "main_menu",
+                                        },
+                                    ],
+                                ],
+                            },
+                        );
+
+                        return new Response("OK");
+                    }
+
+                    const options =
+                        language === "fa"
+                            ? challenge.faOptions
+                            : challenge.options;
+
+                    const question =
+                        language === "fa"
+                            ? challenge.faQuestion
+                            : challenge.question;
+
+                    const keyboard = options.map((option, index) => [
+                        {
+                            text: option,
+                            callback_data: `challenge_answer_${challenge.id}_${index}`,
+                        },
+                    ]);
+
+                    keyboard.push([
+                        {
+                            text:
+                                language === "fa"
+                                    ? "🏠 منوی اصلی"
+                                    : "🏠 Main Menu",
+                            callback_data: "main_menu",
+                        },
+                    ]);
+
+                    const header =
+                        language === "fa"
+                            ? "🧩 چالش روزانه JavaScript"
+                            : "🧩 Daily JavaScript Challenge";
+
+                    const type =
+                        language === "fa"
+                            ? `🎯 نوع: ${challenge.type}`
+                            : `🎯 Type: ${challenge.type}`;
+
+                    const difficulty =
+                        language === "fa"
+                            ? `📊 سطح: ${challenge.difficulty}`
+                            : `📊 Difficulty: ${challenge.difficulty}`;
+
                     await sendMessage(
                         chatId,
                         env,
-                        language === "fa"
-                            ? "💻 چالش\n\nسیستم چالش‌های کدنویسی به‌زودی اضافه می‌شود! 🔥"
-                            : "💻 Challenge\n\nThe coding challenge system is coming soon! 🔥",
+                        `${header}\n\n${type}\n${difficulty}\n\n${question}`,
+                        {
+                            inline_keyboard: keyboard,
+                        },
                     );
 
-                    await sendMainMenu(chatId, env);
+                    return new Response("OK");
+                }
+
+                if (callbackData.startsWith("challenge_answer_")) {
+                    const parts = callbackData.split("_");
+
+                    const challengeId = Number(parts[2]);
+                    const answerIndex = Number(parts[3]);
+
+                    const challenge = challenges.find(
+                        (item) => item.id === challengeId,
+                    );
+
+                    if (!challenge) {
+                        const user = await getUser(chatId, env);
+                        const language = user?.language || "en";
+
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "❌ چالش پیدا نشد."
+                                : "❌ Challenge not found.",
+                        );
+
+                        return new Response("OK");
+                    }
+
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    const isCorrect = answerIndex === challenge.correctAnswer;
+
+                    const challengeProgress = await ensureChallengeProgress(
+                        chatId,
+                        env,
+                    );
+
+                    const today = getTodayDate();
+
+                    let currentStreak = challengeProgress.current_streak;
+                    let bestStreak = challengeProgress.best_streak;
+
+                    if (challengeProgress.last_completed_date === today) {
+                        return new Response("OK");
+                    }
+
+                    if (challengeProgress.last_completed_date) {
+                        const lastDate = new Date(
+                            `${challengeProgress.last_completed_date}T00:00:00Z`,
+                        );
+
+                        const currentDate = new Date(
+                            `${today}T00:00:00Z`,
+                        );
+
+                        const daysSinceLastChallenge = Math.floor(
+                            (currentDate - lastDate) /
+                            (1000 * 60 * 60 * 24),
+                        );
+
+                        if (daysSinceLastChallenge === 1) {
+                            currentStreak += 1;
+                        } else {
+                            currentStreak = 1;
+                        }
+                    } else {
+                        currentStreak = 1;
+                    }
+
+                    if (currentStreak > bestStreak) {
+                        bestStreak = currentStreak;
+                    }
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            `UPDATE challenge_progress
+             SET current_streak = ?,
+                 best_streak = ?,
+                 last_completed_date = ?,
+                 total_completed = total_completed + 1,
+                 correct_answers = correct_answers + ?
+             WHERE telegram_id = ?`,
+                        )
+                        .bind(
+                            currentStreak,
+                            bestStreak,
+                            today,
+                            isCorrect ? 1 : 0,
+                            String(chatId),
+                        )
+                        .run();
+
+                    const explanation =
+                        language === "fa"
+                            ? challenge.faExplanation
+                            : challenge.explanation;
+
+                    const resultText =
+                        language === "fa"
+                            ? isCorrect
+                                ? "✅ درست بود!"
+                                : "❌ جواب اشتباه بود!"
+                            : isCorrect
+                                ? "✅ Correct!"
+                                : "❌ Wrong!";
+
+                    const motivation =
+                        language === "fa"
+                            ? "🔥 فردا برگرد و چالش بعدی رو فتح کن!"
+                            : "🔥 Come back tomorrow and conquer the next challenge!";
+
+                    const statsText =
+                        language === "fa"
+                            ? `🔥 استریک فعلی: ${currentStreak}\n` +
+                            `🏆 بهترین استریک: ${bestStreak}\n` +
+                            `✅ چالش‌های انجام‌شده: ${challengeProgress.total_completed + 1}\n` +
+                            `🎯 پاسخ‌های درست: ${challengeProgress.correct_answers +
+                            (isCorrect ? 1 : 0)
+                            }`
+                            : `🔥 Current streak: ${currentStreak}\n` +
+                            `🏆 Best streak: ${bestStreak}\n` +
+                            `✅ Challenges completed: ${challengeProgress.total_completed + 1
+                            }\n` +
+                            `🎯 Correct answers: ${challengeProgress.correct_answers +
+                            (isCorrect ? 1 : 0)
+                            }`;
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        `${resultText}\n\n${explanation}\n\n<b>${motivation}</b>\n\n${statsText}`,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
                 }
 
                 if (callbackData === "progress") {

@@ -768,78 +768,99 @@ export default {
                 }
 
                 if (callbackData === "quiz") {
-                    const completedLessonIds = lessons
-                        .filter(
-                            (lesson) =>
-                                lesson.id < user.current_lesson,
-                        )
-                        .map((lesson) => lesson.id);
-
-                    const quizPool = questions.filter(
-                        (question) =>
-                            completedLessonIds.includes(
-                                question.lessonId,
-                            ),
+                    const availableLessons = lessons.filter(
+                        (lesson) => lesson.id <= user.current_lesson,
                     );
 
-                    if (quizPool.length === 0) {
+                    if (availableLessons.length === 0) {
                         await sendMessage(
                             chatId,
                             env,
                             language === "fa"
-                                ? "🧠 آزمون\n\nبرای شرکت در آزمون باید حداقل یک درس را کامل کنید. 📚"
-                                : "🧠 Quiz\n\nYou need to complete at least one lesson before taking a quiz. 📚",
+                                ? "🧠 آزمون\n\nهنوز درسی برای آزمون در دسترس نیست. 📚"
+                                : "🧠 Quiz\n\nThere are no available lessons for a quiz yet. 📚",
                         );
 
                         await sendMainMenu(chatId, env);
                         return new Response("OK");
                     }
 
-                    const shuffledQuestions = [...quizPool].sort(
-                        () => Math.random() - 0.5,
-                    );
+                    const existingQuiz = await getQuizSession(chatId, env);
 
-                    const quizQuestions =
-                        shuffledQuestions.slice(0, 5);
-
-                    await setQuizSession(chatId, {
-                        questions: quizQuestions,
-                        currentQuestion: 0,
-                        score: 0,
-                    }, env);
-
-                    const quiz = await getQuizSession(chatId, env);
-                    const question = quiz.questions[0];
-
-                    const options =
-                        language === "fa"
-                            ? question.faOptions
-                            : question.options;
-
-                    const questionText =
-                        language === "fa"
-                            ? question.faQuestion
-                            : question.question;
-
-                    const optionButtons = options.map(
-                        (option, index) => [
+                    if (existingQuiz) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "🧠 شما یک آزمون ناتمام دارید.\n\nمی‌خواهید ادامه دهید؟"
+                                : "🧠 You have an unfinished quiz.\n\nWould you like to continue?",
                             {
-                                text: option,
-                                callback_data: `quiz_answer_${question.id}_${index}`,
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text:
+                                                language === "fa"
+                                                    ? "▶️ ادامه آزمون"
+                                                    : "▶️ Continue Quiz",
+                                            callback_data: "continue_quiz",
+                                        },
+                                    ],
+                                    [
+                                        {
+                                            text:
+                                                language === "fa"
+                                                    ? "🔄 آزمون جدید"
+                                                    : "🔄 New Quiz",
+                                            callback_data: "start_quiz",
+                                        },
+                                    ],
+                                    [
+                                        {
+                                            text:
+                                                language === "fa"
+                                                    ? "🏠 منوی اصلی"
+                                                    : "🏠 Main Menu",
+                                            callback_data: "main_menu",
+                                        },
+                                    ],
+                                ],
                             },
-                        ],
-                    );
+                        );
+
+                        return new Response("OK");
+                    }
 
                     await sendMessage(
                         chatId,
                         env,
                         language === "fa"
-                            ? `🧠 آزمون JavaScript\n\nسؤال 1/${quiz.questions.length}\n\n${questionText}`
-                            : `🧠 JavaScript Quiz\n\nQuestion 1/${quiz.questions.length}\n\n${questionText}`,
+                            ? `🧠 آزمون JavaScript\n\nاین آزمون شامل ${availableLessons.length} سؤال است.\n\n📚 از هر درس در دسترس شما، یک سؤال به‌صورت تصادفی انتخاب می‌شود.\n\n🎲 سؤال‌ها در هر آزمون به‌صورت تصادفی انتخاب می‌شوند.\n\n📊 در پایان، امتیاز و دقت شما نمایش داده می‌شود.\n\nآماده‌ای؟`
+                            : `🧠 JavaScript Quiz\n\nThis quiz contains ${availableLessons.length} questions.\n\n📚 One random question will be selected from each lesson available to you.\n\n🎲 Questions are randomly selected every time.\n\n📊 At the end, you'll see your score and accuracy.\n\nReady?`,
                         {
-                            inline_keyboard: optionButtons,
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🚀 شروع آزمون"
+                                                : "🚀 Start Quiz",
+                                        callback_data: "start_quiz",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
                         },
                     );
+
+                    return new Response("OK");
                 }
 
                 if (
@@ -867,18 +888,10 @@ export default {
                         return new Response("OK");
                     }
 
-                    await fetch(
-                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/deleteMessage`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                message_id: callbackQuery.message.message_id,
-                            }),
-                        },
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
                     );
 
                     const isCorrect =
@@ -896,15 +909,19 @@ export default {
 
                     quiz.currentQuestion++;
 
-                    await setQuizSession(chatId, quiz, env);
+                    await setQuizSession(
+                        chatId,
+                        quiz,
+                        env,
+                    );
 
                     const resultText = isCorrect
                         ? language === "fa"
-                            ? "✅ درست!\n\n"
-                            : "✅ Correct!\n\n"
+                            ? "✅ درست!"
+                            : "✅ Correct!"
                         : language === "fa"
-                            ? "❌ اشتباه!\n\n"
-                            : "❌ Incorrect!\n\n";
+                            ? "❌ اشتباه!"
+                            : "❌ Incorrect!";
 
                     const explanation =
                         language === "fa"
@@ -922,23 +939,70 @@ export default {
                             .bind(String(chatId))
                             .run();
 
+                        const accuracy =
+                            Math.round(
+                                (quiz.score /
+                                    quiz.questions.length) *
+                                100,
+                            );
+
+                        await deleteQuizSession(
+                            chatId,
+                            env,
+                        );
+
                         await sendMessage(
                             chatId,
                             env,
                             language === "fa"
-                                ? `${resultText}${explanation}\n\n🏆 آزمون تمام شد!\n\nامتیاز: ${quiz.score}/${quiz.questions.length}`
-                                : `${resultText}${explanation}\n\n🏆 Quiz Complete!\n\nScore: ${quiz.score}/${quiz.questions.length}`,
+                                ? `${resultText}\n\n${explanation}\n\n🏆 آزمون تمام شد!\n\n🎯 امتیاز: ${quiz.score}/${quiz.questions.length}\n📊 دقت: ${accuracy}%`
+                                : `${resultText}\n\n${explanation}\n\n🏆 Quiz Complete!\n\n🎯 Score: ${quiz.score}/${quiz.questions.length}\n📊 Accuracy: ${accuracy}%`,
+                            {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text:
+                                                language === "fa"
+                                                    ? "🔄 آزمون جدید"
+                                                    : "🔄 New Quiz",
+                                            callback_data: "quiz",
+                                        },
+                                    ],
+                                    [
+                                        {
+                                            text:
+                                                language === "fa"
+                                                    ? "📊 پیشرفت من"
+                                                    : "📊 My Progress",
+                                            callback_data: "progress",
+                                        },
+                                    ],
+                                    [
+                                        {
+                                            text:
+                                                language === "fa"
+                                                    ? "🏠 منوی اصلی"
+                                                    : "🏠 Main Menu",
+                                            callback_data: "main_menu",
+                                        },
+                                    ],
+                                ],
+                            },
                         );
-
-                        await deleteQuizSession(chatId, env);
-
-                        await sendMainMenu(chatId, env);
 
                         return new Response("OK");
                     }
 
                     const nextQuestion =
-                        quiz.questions[quiz.currentQuestion];
+                        quiz.questions[
+                        quiz.currentQuestion
+                        ];
+
+                    const nextLesson = lessons.find(
+                        (lesson) =>
+                            lesson.id ===
+                            nextQuestion.lessonId,
+                    );
 
                     const options =
                         language === "fa"
@@ -949,6 +1013,11 @@ export default {
                         language === "fa"
                             ? nextQuestion.faQuestion
                             : nextQuestion.question;
+
+                    const lessonName =
+                        language === "fa"
+                            ? nextLesson.faTitle
+                            : nextLesson.title;
 
                     const optionButtons =
                         options.map(
@@ -963,19 +1032,22 @@ export default {
                     await sendMessage(
                         chatId,
                         env,
-                        `${resultText}${explanation}`,
+                        `${resultText}\n\n${explanation}`,
                     );
 
                     await sendMessage(
                         chatId,
                         env,
                         language === "fa"
-                            ? `🧠 سؤال ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n${questionText}`
-                            : `🧠 Question ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n${questionText}`,
+                            ? `🧠 سؤال ${quiz.currentQuestion + 1}/${quiz.questions.length}\n📚 درس ${nextLesson.id}: ${lessonName}\n\n${questionText}`
+                            : `🧠 Question ${quiz.currentQuestion + 1}/${quiz.questions.length}\n📚 Lesson ${nextLesson.id}: ${lessonName}\n\n${questionText}`,
                         {
-                            inline_keyboard: optionButtons,
+                            inline_keyboard:
+                                optionButtons,
                         },
                     );
+
+                    return new Response("OK");
                 }
 
                 if (callbackQuery.data === "reset_progress") {
@@ -1065,6 +1137,155 @@ export default {
                         language === "fa"
                             ? "🚨 تأیید نهایی\n\nاین کار قابل بازگشت نیست.\n\nبرای تأیید، کلمه زیر را ارسال کنید:\n\nDELETE\n\nهر چیز دیگری باعث لغو بازنشانی می‌شود."
                             : "🚨 Final Confirmation\n\nThis action cannot be undone.\n\nTo confirm, type:\n\nDELETE\n\nAnything else will cancel the reset.",
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackData === "continue_quiz") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const quiz = await getQuizSession(chatId, env);
+
+                    if (!quiz) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "❌ آزمون فعالی وجود ندارد."
+                                : "❌ There is no active quiz.",
+                        );
+
+                        await sendMainMenu(chatId, env);
+                        return new Response("OK");
+                    }
+
+                    const question = quiz.questions[quiz.currentQuestion];
+
+                    const lesson = lessons.find(
+                        (lesson) => lesson.id === question.lessonId,
+                    );
+
+                    const options =
+                        language === "fa"
+                            ? question.faOptions
+                            : question.options;
+
+                    const questionText =
+                        language === "fa"
+                            ? question.faQuestion
+                            : question.question;
+
+                    const lessonName =
+                        language === "fa"
+                            ? lesson.faTitle
+                            : lesson.title;
+
+                    const optionButtons = options.map(
+                        (option, index) => [
+                            {
+                                text: option,
+                                callback_data: `quiz_answer_${question.id}_${index}`,
+                            },
+                        ],
+                    );
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `🧠 آزمون JavaScript\n\nسؤال ${quiz.currentQuestion + 1}/${quiz.questions.length}\n📚 درس ${lesson.id}: ${lessonName}\n\n${questionText}`
+                            : `🧠 JavaScript Quiz\n\nQuestion ${quiz.currentQuestion + 1}/${quiz.questions.length}\n📚 Lesson ${lesson.id}: ${lessonName}\n\n${questionText}`,
+                        {
+                            inline_keyboard: optionButtons,
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackData === "start_quiz") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const availableLessons = lessons.filter(
+                        (lesson) => lesson.id <= user.current_lesson,
+                    );
+
+                    const quizQuestions = availableLessons.map((lesson) => {
+                        const lessonQuestions = questions.filter(
+                            (question) => question.lessonId === lesson.id,
+                        );
+
+                        const randomQuestion =
+                            lessonQuestions[
+                            Math.floor(Math.random() * lessonQuestions.length)
+                            ];
+
+                        return randomQuestion;
+                    });
+
+                    const shuffledQuizQuestions = [...quizQuestions].sort(
+                        () => Math.random() - 0.5,
+                    );
+
+                    await setQuizSession(
+                        chatId,
+                        {
+                            questions: shuffledQuizQuestions,
+                            currentQuestion: 0,
+                            score: 0,
+                        },
+                        env,
+                    );
+
+                    const quiz = await getQuizSession(chatId, env);
+                    const question = quiz.questions[0];
+
+                    const lesson = lessons.find(
+                        (lesson) => lesson.id === question.lessonId,
+                    );
+
+                    const options =
+                        language === "fa"
+                            ? question.faOptions
+                            : question.options;
+
+                    const questionText =
+                        language === "fa"
+                            ? question.faQuestion
+                            : question.question;
+
+                    const lessonName =
+                        language === "fa"
+                            ? lesson.faTitle
+                            : lesson.title;
+
+                    const optionButtons = options.map(
+                        (option, index) => [
+                            {
+                                text: option,
+                                callback_data: `quiz_answer_${question.id}_${index}`,
+                            },
+                        ],
+                    );
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `🧠 آزمون JavaScript\n\nسؤال 1/${quiz.questions.length}\n📚 درس ${lesson.id}: ${lessonName}\n\n${questionText}`
+                            : `🧠 JavaScript Quiz\n\nQuestion 1/${quiz.questions.length}\n📚 Lesson ${lesson.id}: ${lessonName}\n\n${questionText}`,
+                        {
+                            inline_keyboard: optionButtons,
+                        },
                     );
 
                     return new Response("OK");

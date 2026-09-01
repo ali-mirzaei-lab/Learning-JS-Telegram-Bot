@@ -1,5 +1,6 @@
 import { lessons } from "./lessons.js";
 import { questions } from "./questions.js";
+import { references } from "./reference.js";
 
 async function getUser(chatId, env) {
     return await env.learning_js_bot_db
@@ -59,7 +60,12 @@ async function deleteQuizSession(chatId, env) {
         .run();
 }
 
-async function sendMessage(chatId, env, text, replyMarkup = null) {
+async function sendMessage(
+    chatId,
+    env,
+    text,
+    replyMarkup = null,
+) {
     const body = {
         chat_id: chatId,
         text,
@@ -316,8 +322,15 @@ export default {
                     return new Response("OK");
                 }
 
-                if (callbackData === "language") {
+                if (callbackQuery.data === "language") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
                     await sendLanguageMenu(chatId, env);
+
                     return new Response("OK");
                 }
 
@@ -325,6 +338,12 @@ export default {
                     callbackData === "language_en" ||
                     callbackData === "language_fa"
                 ) {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
                     const language =
                         callbackData === "language_fa"
                             ? "fa"
@@ -348,44 +367,7 @@ export default {
                         confirmation,
                     );
 
-                    await sendMessage(
-                        chatId,
-                        env,
-                        language === "fa"
-                            ? "⚙️ تنظیمات"
-                            : "⚙️ Settings",
-                        {
-                            inline_keyboard: [
-                                [
-                                    {
-                                        text:
-                                            language === "fa"
-                                                ? "🌐 زبان"
-                                                : "🌐 Language",
-                                        callback_data: "language",
-                                    },
-                                ],
-                                [
-                                    {
-                                        text:
-                                            language === "fa"
-                                                ? "🔄 بازنشانی پیشرفت"
-                                                : "🔄 Reset Progress",
-                                        callback_data: "reset_progress",
-                                    },
-                                ],
-                                [
-                                    {
-                                        text:
-                                            language === "fa"
-                                                ? "🏠 منوی اصلی"
-                                                : "🏠 Main Menu",
-                                        callback_data: "main_menu",
-                                    },
-                                ],
-                            ],
-                        },
-                    );
+                    await sendMainMenu(chatId, env);
 
                     return new Response("OK");
                 }
@@ -1372,15 +1354,133 @@ export default {
                 }
 
                 if (callbackData === "reference") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    const keyboard = [];
+
+                    for (let i = 0; i < references.length; i += 2) {
+                        const row = [];
+
+                        row.push({
+                            text:
+                                language === "fa"
+                                    ? references[i].faTitle
+                                    : references[i].title,
+                            callback_data: `reference_${references[i].id}`,
+                        });
+
+                        if (references[i + 1]) {
+                            row.push({
+                                text:
+                                    language === "fa"
+                                        ? references[i + 1].faTitle
+                                        : references[i + 1].title,
+                                callback_data: `reference_${references[i + 1].id}`,
+                            });
+                        }
+
+                        keyboard.push(row);
+                    }
+
+                    keyboard.push([
+                        {
+                            text:
+                                language === "fa"
+                                    ? "🏠 منوی اصلی"
+                                    : "🏠 Main Menu",
+                            callback_data: "main_menu",
+                        },
+                    ]);
+
                     await sendMessage(
                         chatId,
                         env,
                         language === "fa"
-                            ? "📖 مرجع JavaScript\n\nمرجع JavaScript به‌زودی اضافه می‌شود! 📚"
-                            : "📖 JS Reference\n\nThe JavaScript reference is coming soon! 📚",
+                            ? "📖 مرجع JavaScript\n\n" +
+                            "اطلاعات سریع و کاربردی JavaScript برای توسعه روزمره Frontend.\n\n" +
+                            "یک موضوع را انتخاب کنید:"
+                            : "📖 JavaScript Reference\n\n" +
+                            "Quick, practical JavaScript information for everyday frontend development.\n\n" +
+                            "Choose a topic:",
+                        {
+                            inline_keyboard: keyboard,
+                        },
                     );
 
-                    await sendMainMenu(chatId, env);
+                    return new Response("OK");
+                }
+
+                if (callbackData.startsWith("reference_")) {
+                    const referenceId = Number(
+                        callbackData.replace("reference_", ""),
+                    );
+
+                    const reference = references.find(
+                        (item) => item.id === referenceId,
+                    );
+
+                    if (!reference) {
+                        const user = await getUser(chatId, env);
+                        const language = user?.language || "en";
+
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "❌ موضوع Reference پیدا نشد."
+                                : "❌ Reference topic not found.",
+                        );
+
+                        return new Response("OK");
+                    }
+
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? reference.faContent
+                            : reference.content,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "⬅️ بازگشت به Reference"
+                                                : "⬅️ Back to Reference",
+                                        callback_data: "reference",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
                 }
 
                 return new Response("OK");

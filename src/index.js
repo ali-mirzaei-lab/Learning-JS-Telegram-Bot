@@ -148,9 +148,9 @@ async function sendMainMenu(chatId, env) {
                     ],
                     [
                         {
-                            text: "🌐 زبان",
-                            callback_data: "language",
-                        },
+                            text: "⚙️ تنظیمات",
+                            callback_data: "settings",
+                        }
                     ],
                 ]
                 : [
@@ -188,9 +188,9 @@ async function sendMainMenu(chatId, env) {
                     ],
                     [
                         {
-                            text: "🌐 Language",
-                            callback_data: "language",
-                        },
+                            text: "⚙️ Settings",
+                            callback_data: "settings",
+                        }
                     ],
                 ],
     });
@@ -264,6 +264,58 @@ export default {
                     return new Response("OK");
                 }
 
+                if (callbackQuery.data === "settings") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "⚙️ تنظیمات"
+                            : "⚙️ Settings",
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🌐 زبان"
+                                                : "🌐 Language",
+                                        callback_data: "language",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🔄 بازنشانی پیشرفت"
+                                                : "🔄 Reset Progress",
+                                        callback_data: "reset_progress",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
                 if (callbackData === "language") {
                     await sendLanguageMenu(chatId, env);
                     return new Response("OK");
@@ -296,7 +348,44 @@ export default {
                         confirmation,
                     );
 
-                    await sendMainMenu(chatId, env);
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "⚙️ تنظیمات"
+                            : "⚙️ Settings",
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🌐 زبان"
+                                                : "🌐 Language",
+                                        callback_data: "language",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🔄 بازنشانی پیشرفت"
+                                                : "🔄 Reset Progress",
+                                        callback_data: "reset_progress",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
 
                     return new Response("OK");
                 }
@@ -889,6 +978,98 @@ export default {
                     );
                 }
 
+                if (callbackQuery.data === "reset_progress") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "⚠️ بازنشانی پیشرفت\n\nاین کار موارد زیر را بازنشانی می‌کند:\n\n• درس فعلی\n• درس‌های تکمیل‌شده\n• آمار سؤالات\n• آمار آزمون‌ها\n\nزبان و حساب کاربری شما حذف نخواهد شد.\n\nآیا مطمئن هستید؟"
+                            : "⚠️ Reset Progress\n\nThis will reset:\n\n• Current lesson\n• Completed lessons\n• Question statistics\n• Quiz statistics\n\nYour language and account will NOT be affected.\n\nAre you sure you want to continue?",
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "❌ لغو"
+                                                : "❌ Cancel",
+                                        callback_data: "cancel_reset",
+                                    },
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🔄 بازنشانی پیشرفت"
+                                                : "🔄 Reset Progress",
+                                        callback_data: "confirm_reset",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "cancel_reset") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "❌ بازنشانی لغو شد.\n\nپیشرفت شما امن است."
+                            : "❌ Reset cancelled.\n\nYour progress is safe.",
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "confirm_reset") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            `UPDATE users
+             SET reset_confirmation = 1
+             WHERE telegram_id = ?`,
+                        )
+                        .bind(String(chatId))
+                        .run();
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "🚨 تأیید نهایی\n\nاین کار قابل بازگشت نیست.\n\nبرای تأیید، کلمه زیر را ارسال کنید:\n\nDELETE\n\nهر چیز دیگری باعث لغو بازنشانی می‌شود."
+                            : "🚨 Final Confirmation\n\nThis action cannot be undone.\n\nTo confirm, type:\n\nDELETE\n\nAnything else will cancel the reset.",
+                    );
+
+                    return new Response("OK");
+                }
+
                 if (callbackData === "challenge") {
                     await sendMessage(
                         chatId,
@@ -992,13 +1173,7 @@ export default {
             const message = update.message.text;
 
             if (message === "/start") {
-                const existingUser =
-                    await env.learning_js_bot_db
-                        .prepare(
-                            "SELECT id FROM users WHERE telegram_id = ?",
-                        )
-                        .bind(String(chatId))
-                        .first();
+                const existingUser = await getUser(chatId, env);
 
                 if (!existingUser) {
                     await env.learning_js_bot_db
@@ -1007,16 +1182,127 @@ export default {
                         )
                         .bind(String(chatId))
                         .run();
+
+                    await ensureProgress(chatId, env);
+
+                    await sendLanguageMenu(
+                        chatId,
+                        env,
+                        true,
+                    );
+
+                    return new Response("OK");
                 }
 
                 await ensureProgress(chatId, env);
 
-                await sendLanguageMenu(
+                const language = existingUser.language || "en";
+
+                const currentLesson = lessons.find(
+                    (lesson) => lesson.id === existingUser.current_lesson,
+                );
+
+                await sendMessage(
                     chatId,
                     env,
-                    true,
+                    language === "fa"
+                        ? currentLesson
+                            ? `👋 خوش برگشتی!\n\n📚 درس فعلی شما:\n${currentLesson.faTitle}\n\nآماده‌ای به یادگیری ادامه بدی؟`
+                            : "👋 خوش برگشتی!\n\n🏆 شما تمام درس‌های موجود را به پایان رسانده‌اید!"
+                        : currentLesson
+                            ? `👋 Welcome back!\n\n📚 Your current lesson:\n${currentLesson.title}\n\nReady to continue learning?`
+                            : "👋 Welcome back!\n\n🏆 You've completed all available lessons!",
                 );
+
+                await sendMainMenu(chatId, env);
+
+                return new Response("OK");
             }
+
+            const resetConfirmation = await env.learning_js_bot_db
+                .prepare(
+                    "SELECT reset_confirmation FROM users WHERE telegram_id = ?",
+                )
+                .bind(String(chatId))
+                .first();
+
+            if (resetConfirmation?.reset_confirmation === 1) {
+                const normalizedMessage = message.trim().toLowerCase();
+
+                if (normalizedMessage === "delete") {
+                    await env.learning_js_bot_db
+                        .prepare(
+                            `UPDATE users
+                 SET current_lesson = 1,
+                     reset_confirmation = 0
+                 WHERE telegram_id = ?`,
+                        )
+                        .bind(String(chatId))
+                        .run();
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            "DELETE FROM progress WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .run();
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            "DELETE FROM answered_questions WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .run();
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            "DELETE FROM quiz_sessions WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .run();
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "✅ پیشرفت شما با موفقیت بازنشانی شد.\n\n🚀 شما دوباره از درس اول شروع می‌کنید."
+                            : "✅ Progress Reset\n\nYour learning progress has been reset.\n\n🚀 You're back to Lesson 1.",
+                    );
+
+                    await sendMainMenu(chatId, env);
+
+                    return new Response("OK");
+                }
+
+                await env.learning_js_bot_db
+                    .prepare(
+                        `UPDATE users
+             SET reset_confirmation = 0
+             WHERE telegram_id = ?`,
+                    )
+                    .bind(String(chatId))
+                    .run();
+
+                const user = await getUser(chatId, env);
+                const language = user?.language || "en";
+
+                await sendMessage(
+                    chatId,
+                    env,
+                    language === "fa"
+                        ? "❌ بازنشانی لغو شد.\n\nپیشرفت شما امن است."
+                        : "❌ Reset cancelled.\n\nYour progress is safe.",
+                );
+
+                await sendMainMenu(chatId, env);
+
+                return new Response("OK");
+            }
+
+
 
             return new Response("OK");
         } catch (error) {

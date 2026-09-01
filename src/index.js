@@ -69,7 +69,7 @@ async function sendMessage(chatId, env, text, replyMarkup = null) {
         body.reply_markup = replyMarkup;
     }
 
-    await fetch(
+    const response = await fetch(
         `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
         {
             method: "POST",
@@ -77,6 +77,26 @@ async function sendMessage(chatId, env, text, replyMarkup = null) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
+        },
+    );
+
+    const data = await response.json();
+    return data.result?.message_id;
+}
+
+async function removeMessageKeyboard(chatId, messageId, env) {
+    await fetch(
+        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editMessageReplyMarkup`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                message_id: messageId,
+                reply_markup: { inline_keyboard: [] },
+            }),
         },
     );
 }
@@ -592,6 +612,20 @@ export default {
                         return new Response("OK");
                     }
 
+                    await fetch(
+                        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/deleteMessage`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                chat_id: chatId,
+                                message_id: callbackQuery.message.message_id,
+                            }),
+                        },
+                    );
+
                     const isCorrect =
                         answerIndex === question.correctAnswer;
 
@@ -674,12 +708,17 @@ export default {
                     await sendMessage(
                         chatId,
                         env,
+                        `${resultText}${explanation}`,
+                    );
+
+                    await sendMessage(
+                        chatId,
+                        env,
                         language === "fa"
-                            ? `${resultText}${explanation}\n\n🧠 سؤال ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n${questionText}`
-                            : `${resultText}${explanation}\n\n🧠 Question ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n${questionText}`,
+                            ? `🧠 سؤال ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n${questionText}`
+                            : `🧠 Question ${quiz.currentQuestion + 1}/${quiz.questions.length}\n\n${questionText}`,
                         {
-                            inline_keyboard:
-                                optionButtons,
+                            inline_keyboard: optionButtons,
                         },
                     );
                 }

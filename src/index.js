@@ -1,8 +1,6 @@
 import { lessons } from "./lessons.js";
 import { questions } from "./questions.js";
 
-const quizzes = new Map();
-
 async function getUser(chatId, env) {
     return await env.learning_js_bot_db
         .prepare(
@@ -17,6 +15,46 @@ async function ensureProgress(chatId, env) {
         .prepare(
             "INSERT OR IGNORE INTO progress (telegram_id) VALUES (?)",
         )
+        .bind(String(chatId))
+        .run();
+}
+
+async function getQuizSession(chatId, env) {
+    const row = await env.learning_js_bot_db
+        .prepare("SELECT * FROM quiz_sessions WHERE telegram_id = ?")
+        .bind(String(chatId))
+        .first();
+
+    if (!row) return null;
+
+    return {
+        questions: JSON.parse(row.questions),
+        currentQuestion: row.current_question,
+        score: row.score,
+    };
+}
+
+async function setQuizSession(chatId, quizData, env) {
+    const questionsJson = JSON.stringify(quizData.questions);
+    const now = Date.now();
+
+    await env.learning_js_bot_db
+        .prepare(`
+            INSERT INTO quiz_sessions (telegram_id, questions, current_question, score, updated_at) 
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(telegram_id) DO UPDATE SET 
+                questions = excluded.questions,
+                current_question = excluded.current_question,
+                score = excluded.score,
+                updated_at = excluded.updated_at
+        `)
+        .bind(String(chatId), questionsJson, quizData.currentQuestion, quizData.score, now)
+        .run();
+}
+
+async function deleteQuizSession(chatId, env) {
+    await env.learning_js_bot_db
+        .prepare("DELETE FROM quiz_sessions WHERE telegram_id = ?")
         .bind(String(chatId))
         .run();
 }
@@ -489,13 +527,13 @@ export default {
                     const quizQuestions =
                         shuffledQuestions.slice(0, 5);
 
-                    quizzes.set(chatId, {
+                    await setQuizSession(chatId, {
                         questions: quizQuestions,
                         currentQuestion: 0,
                         score: 0,
-                    });
+                    }, env);
 
-                    const quiz = quizzes.get(chatId);
+                    const quiz = await getQuizSession(chatId, env);
                     const question = quiz.questions[0];
 
                     const options =
@@ -539,7 +577,7 @@ export default {
                     const questionId = Number(parts[2]);
                     const answerIndex = Number(parts[3]);
 
-                    const quiz = quizzes.get(chatId);
+                    const quiz = await getQuizSession(chatId, env);
 
                     if (!quiz) {
                         return new Response("OK");
@@ -568,6 +606,8 @@ export default {
                     }
 
                     quiz.currentQuestion++;
+
+                    await setQuizSession(chatId, quiz, env);
 
                     const resultText = isCorrect
                         ? language === "fa"
@@ -601,7 +641,7 @@ export default {
                                 : `${resultText}${explanation}\n\n🏆 Quiz Complete!\n\nScore: ${quiz.score}/${quiz.questions.length}`,
                         );
 
-                        quizzes.delete(chatId);
+                        await deleteQuizSession(chatId, env);
 
                         await sendMainMenu(chatId, env);
 

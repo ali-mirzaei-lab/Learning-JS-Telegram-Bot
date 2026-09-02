@@ -1566,7 +1566,7 @@ export default {
                     await sendMessage(
                         chatId,
                         env,
-                        `${resultText}\n\n${explanation}\n\n<b>${motivation}</b>\n\n${statsText}`,
+                        `${resultText}\n\n${explanation}\n\n${motivation}\n\n${statsText}`,
                         {
                             inline_keyboard: [
                                 [

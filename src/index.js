@@ -1621,36 +1621,79 @@ export default {
                             lesson.id === user.current_lesson,
                     );
 
+                    const challengeProgress =
+                        await ensureChallengeProgress(chatId, env);
+
+                    const challengeAccuracy =
+                        challengeProgress.total_completed > 0
+                            ? Math.round(
+                                (challengeProgress.correct_answers /
+                                    challengeProgress.total_completed) *
+                                100,
+                            )
+                            : 0;
+
                     const progressText =
                         language === "fa"
                             ? "📊 پیشرفت من\n\n" +
-                            `📚 درس‌های تکمیل‌شده: ${completedLessons}/${totalLessons}\n` +
+                            "📚 پیشرفت یادگیری\n\n" +
+                            `🎓 درس‌های تکمیل‌شده: ${completedLessons}/${totalLessons}\n` +
                             `🎯 درس فعلی: ${currentLesson
                                 ? currentLesson.faTitle
                                 : "تمام درس‌ها تکمیل شده‌اند!"
                             }\n\n` +
+                            "━━━━━━━━━━━━━━━━━━\n\n" +
+                            "📊 آمار آزمون\n\n" +
+                            `📝 آزمون‌های تکمیل‌شده: ${progress.quizzes_completed}\n` +
                             `❓ سؤالات پاسخ داده‌شده: ${progress.questions_answered}\n` +
                             `✅ پاسخ‌های صحیح: ${progress.correct_answers}\n` +
-                            `📈 دقت: ${accuracy}%\n` +
-                            `🏆 آزمون‌های تکمیل‌شده: ${progress.quizzes_completed}`
+                            `📊 دقت: ${accuracy}%\n\n` +
+                            "━━━━━━━━━━━━━━━━━━\n\n" +
+                            "🧩 چالش روزانه\n\n" +
+                            `🔥 استریک فعلی: ${challengeProgress.current_streak}\n` +
+                            `🏆 بهترین استریک: ${challengeProgress.best_streak}\n` +
+                            `✅ چالش‌های انجام‌شده: ${challengeProgress.total_completed}\n` +
+                            `🎯 پاسخ‌های صحیح: ${challengeProgress.correct_answers}\n` +
+                            `📊 دقت: ${challengeAccuracy}%`
                             : "📊 My Progress\n\n" +
-                            `📚 Lessons completed: ${completedLessons}/${totalLessons}\n` +
+                            "📚 Learning Progress\n\n" +
+                            `🎓 Lessons completed: ${completedLessons}/${totalLessons}\n` +
                             `🎯 Current lesson: ${currentLesson
                                 ? currentLesson.title
                                 : "All lessons completed!"
                             }\n\n` +
+                            "━━━━━━━━━━━━━━━━━━\n\n" +
+                            "📊 Quiz Stats\n\n" +
+                            `📝 Quizzes completed: ${progress.quizzes_completed}\n` +
                             `❓ Questions answered: ${progress.questions_answered}\n` +
                             `✅ Correct answers: ${progress.correct_answers}\n` +
-                            `📈 Accuracy: ${accuracy}%\n` +
-                            `🏆 Quizzes completed: ${progress.quizzes_completed}`;
+                            `📊 Accuracy: ${accuracy}%\n\n` +
+                            "━━━━━━━━━━━━━━━━━━\n\n" +
+                            "🧩 Daily Challenge\n\n" +
+                            `🔥 Current streak: ${challengeProgress.current_streak}\n` +
+                            `🏆 Best streak: ${challengeProgress.best_streak}\n` +
+                            `✅ Challenges completed: ${challengeProgress.total_completed}\n` +
+                            `🎯 Correct answers: ${challengeProgress.correct_answers}\n` +
+                            `📊 Accuracy: ${challengeAccuracy}%`;
 
                     await sendMessage(
                         chatId,
                         env,
                         progressText,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
                     );
-
-                    await sendMainMenu(chatId, env);
                 }
 
                 if (callbackData === "reference") {

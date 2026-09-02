@@ -291,6 +291,275 @@ async function recordQuestionAnswer(chatId, isCorrect, env) {
     }
 }
 
+function getQuizSize(completedLessonsCount) {
+    return Math.min(
+        12,
+        Math.max(5, completedLessonsCount + 4),
+    );
+}
+
+function shuffleArray(array) {
+    return [...array].sort(
+        () => Math.random() - 0.5,
+    );
+}
+
+async function getQuizHistory(
+    chatId,
+    difficulty,
+    cycle,
+    env,
+) {
+    const rows =
+        await env.learning_js_bot_db
+            .prepare(
+                "SELECT question_id FROM quiz_question_history WHERE telegram_id = ? AND difficulty = ? AND cycle = ?",
+            )
+            .bind(
+                String(chatId),
+                difficulty,
+                cycle,
+            )
+            .all();
+
+    return new Set(
+        rows.results.map(
+            (row) => Number(row.question_id),
+        ),
+    );
+}
+
+async function getCurrentQuizCycle(
+    chatId,
+    difficulty,
+    env,
+) {
+    const row =
+        await env.learning_js_bot_db
+            .prepare(
+                "SELECT MAX(cycle) AS cycle FROM quiz_question_history WHERE telegram_id = ? AND difficulty = ?",
+            )
+            .bind(
+                String(chatId),
+                difficulty,
+            )
+            .first();
+
+    return row?.cycle || 1;
+}
+
+async function recordQuizQuestionHistory(
+    chatId,
+    selectedQuestions,
+    env,
+) {
+    for (const question of selectedQuestions) {
+        await env.learning_js_bot_db
+            .prepare(
+                `INSERT OR IGNORE INTO quiz_question_history
+                (telegram_id, question_id, difficulty, cycle, used_at)
+                VALUES (?, ?, ?, ?, ?)`,
+            )
+            .bind(
+                String(chatId),
+                question.id,
+                question.difficulty,
+                question.quizCycle || 1,
+                Date.now(),
+            )
+            .run();
+    }
+}
+
+async function recordQuizAnswer(
+    chatId,
+    question,
+    isCorrect,
+    env,
+) {
+    await env.learning_js_bot_db
+        .prepare(
+            `INSERT INTO quiz_answer_history
+            (telegram_id, question_id, lesson_id, difficulty, is_correct, answered_at)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+            String(chatId),
+            question.id,
+            question.lessonId,
+            question.difficulty,
+            isCorrect ? 1 : 0,
+            Date.now(),
+        )
+        .run();
+}
+
+async function selectQuizQuestions(
+    chatId,
+    completedLessons,
+    difficulty,
+    env,
+) {
+    const quizSize = getQuizSize(
+        completedLessons.length,
+    );
+
+    let cycle = await getCurrentQuizCycle(
+        chatId,
+        difficulty,
+        env,
+    );
+
+    const eligibleQuestions = questions.filter(
+        (question) =>
+            question.difficulty === difficulty &&
+            completedLessons.some(
+                (lesson) =>
+                    lesson.id === question.lessonId,
+            ),
+    );
+
+    if (eligibleQuestions.length === 0) {
+        return [];
+    }
+
+    let history = await getQuizHistory(
+        chatId,
+        difficulty,
+        cycle,
+        env,
+    );
+
+    let unusedQuestions =
+        eligibleQuestions.filter(
+            (question) =>
+                !history.has(question.id),
+        );
+
+    if (unusedQuestions.length === 0) {
+        cycle++;
+        history = new Set();
+        unusedQuestions = [
+            ...eligibleQuestions,
+        ];
+    }
+
+    const selectedQuestions = [];
+
+    const shuffledLessons =
+        shuffleArray(completedLessons);
+
+    for (const lesson of shuffledLessons) {
+        if (selectedQuestions.length >= quizSize) {
+            break;
+        }
+
+        let lessonUnused =
+            unusedQuestions.filter(
+                (question) =>
+                    question.lessonId === lesson.id,
+            );
+
+        if (lessonUnused.length === 0) {
+            cycle++;
+
+            lessonUnused =
+                eligibleQuestions.filter(
+                    (question) =>
+                        question.lessonId ===
+                        lesson.id &&
+                        !selectedQuestions.some(
+                            (selected) =>
+                                selected.id ===
+                                question.id,
+                        ),
+                );
+        }
+
+        if (lessonUnused.length === 0) {
+            continue;
+        }
+
+        const selected =
+            shuffleArray(lessonUnused)[0];
+
+        selectedQuestions.push({
+            ...selected,
+            quizCycle: cycle,
+        });
+
+        unusedQuestions =
+            unusedQuestions.filter(
+                (question) =>
+                    question.id !== selected.id,
+            );
+    }
+
+    while (
+        selectedQuestions.length < quizSize
+    ) {
+        if (unusedQuestions.length === 0) {
+            cycle++;
+
+            unusedQuestions =
+                shuffleArray(
+                    eligibleQuestions,
+                ).filter(
+                    (question) =>
+                        !selectedQuestions.some(
+                            (selected) =>
+                                selected.id ===
+                                question.id,
+                        ),
+                );
+
+            if (unusedQuestions.length === 0) {
+                break;
+            }
+        }
+
+        const lessonCounts = {};
+
+        for (const question of selectedQuestions) {
+            lessonCounts[question.lessonId] =
+                (lessonCounts[question.lessonId] || 0) +
+                1;
+        }
+
+        const shuffledUnused =
+            shuffleArray(unusedQuestions);
+
+        shuffledUnused.sort(
+            (a, b) =>
+                (lessonCounts[a.lessonId] || 0) -
+                (lessonCounts[b.lessonId] || 0),
+        );
+
+        const selected = shuffledUnused[0];
+
+        selectedQuestions.push({
+            ...selected,
+            quizCycle: cycle,
+        });
+
+        unusedQuestions =
+            unusedQuestions.filter(
+                (question) =>
+                    question.id !== selected.id,
+            );
+    }
+
+    await recordQuizQuestionHistory(
+        chatId,
+        selectedQuestions,
+        env,
+    );
+
+    return shuffleArray(
+        selectedQuestions,
+    );
+}
+
 export default {
     async fetch(request, env) {
         if (request.method !== "POST") {
@@ -842,7 +1111,7 @@ export default {
 
                 if (callbackData === "quiz") {
                     const availableLessons = lessons.filter(
-                        (lesson) => lesson.id <= user.current_lesson,
+                        (lesson) => lesson.id < user.current_lesson,
                     );
 
                     if (availableLessons.length === 0) {
@@ -851,10 +1120,11 @@ export default {
                             env,
                             language === "fa"
                                 ? "🧠 آزمون\n\nهنوز درسی برای آزمون در دسترس نیست. 📚"
-                                : "🧠 Quiz\n\nThere are no available lessons for a quiz yet. 📚",
+                                : "🧠 Quiz\n\nThere are no completed lessons available for a quiz yet. 📚",
                         );
 
                         await sendMainMenu(chatId, env);
+
                         return new Response("OK");
                     }
 
@@ -884,7 +1154,7 @@ export default {
                                                 language === "fa"
                                                     ? "🔄 آزمون جدید"
                                                     : "🔄 New Quiz",
-                                            callback_data: "start_quiz",
+                                            callback_data: "choose_quiz_difficulty",
                                         },
                                     ],
                                     [
@@ -907,17 +1177,35 @@ export default {
                         chatId,
                         env,
                         language === "fa"
-                            ? `🧠 آزمون JavaScript\n\nاین آزمون شامل ${availableLessons.length} سؤال است.\n\n📚 از هر درس در دسترس شما، یک سؤال به‌صورت تصادفی انتخاب می‌شود.\n\n🎲 سؤال‌ها در هر آزمون به‌صورت تصادفی انتخاب می‌شوند.\n\n📊 در پایان، امتیاز و دقت شما نمایش داده می‌شود.\n\nآماده‌ای؟`
-                            : `🧠 JavaScript Quiz\n\nThis quiz contains ${availableLessons.length} questions.\n\n📚 One random question will be selected from each lesson available to you.\n\n🎲 Questions are randomly selected every time.\n\n📊 At the end, you'll see your score and accuracy.\n\nReady?`,
+                            ? "🧠 آزمون JavaScript\n\nسطح سختی آزمون را انتخاب کنید:"
+                            : "🧠 JavaScript Quiz\n\nChoose your quiz difficulty:",
                         {
                             inline_keyboard: [
                                 [
                                     {
                                         text:
                                             language === "fa"
-                                                ? "🚀 شروع آزمون"
-                                                : "🚀 Start Quiz",
-                                        callback_data: "start_quiz",
+                                                ? "🟢 آسان"
+                                                : "🟢 Easy",
+                                        callback_data: "quiz_difficulty_easy",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🟡 متوسط"
+                                                : "🟡 Medium",
+                                        callback_data: "quiz_difficulty_medium",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🔴 سخت"
+                                                : "🔴 Hard",
+                                        callback_data: "quiz_difficulty_hard",
                                     },
                                 ],
                                 [
@@ -976,9 +1264,18 @@ export default {
                         env,
                     );
 
+                    await recordQuizAnswer(
+                        chatId,
+                        question,
+                        isCorrect,
+                        env,
+                    );
+
                     if (isCorrect) {
                         quiz.score++;
                     }
+
+                    question.isCorrect = isCorrect;
 
                     quiz.currentQuestion++;
 
@@ -1005,13 +1302,6 @@ export default {
                         quiz.currentQuestion >=
                         quiz.questions.length
                     ) {
-                        await env.learning_js_bot_db
-                            .prepare(
-                                "UPDATE progress SET quizzes_completed = quizzes_completed + 1 WHERE telegram_id = ?",
-                            )
-                            .bind(String(chatId))
-                            .run();
-
                         const accuracy =
                             Math.round(
                                 (quiz.score /
@@ -1019,17 +1309,188 @@ export default {
                                 100,
                             );
 
+                        const difficulty =
+                            question.difficulty;
+
+                        const difficultyName =
+                            language === "fa"
+                                ? difficulty === "easy"
+                                    ? "آسان"
+                                    : difficulty === "medium"
+                                        ? "متوسط"
+                                        : "سخت"
+                                : difficulty === "easy"
+                                    ? "Easy"
+                                    : difficulty === "medium"
+                                        ? "Medium"
+                                        : "Hard";
+
+                        const lessonResults = {};
+
+                        for (const quizQuestion of quiz.questions) {
+                            if (
+                                quizQuestion.isCorrect ===
+                                undefined
+                            ) {
+                                continue;
+                            }
+
+                            if (
+                                !lessonResults[
+                                quizQuestion.lessonId
+                                ]
+                            ) {
+                                lessonResults[
+                                    quizQuestion.lessonId
+                                ] = {
+                                    total: 0,
+                                    correct: 0,
+                                };
+                            }
+
+                            lessonResults[
+                                quizQuestion.lessonId
+                            ].total++;
+
+                            if (quizQuestion.isCorrect) {
+                                lessonResults[
+                                    quizQuestion.lessonId
+                                ].correct++;
+                            }
+                        }
+
+                        const lessonPerformance =
+                            Object.entries(
+                                lessonResults,
+                            )
+                                .sort(
+                                    ([a], [b]) =>
+                                        Number(a) - Number(b),
+                                )
+                                .map(
+                                    ([lessonId, result]) => {
+                                        const lesson =
+                                            lessons.find(
+                                                (lesson) =>
+                                                    lesson.id ===
+                                                    Number(
+                                                        lessonId,
+                                                    ),
+                                            );
+
+                                        const lessonAccuracy =
+                                            Math.round(
+                                                (result.correct /
+                                                    result.total) *
+                                                100,
+                                            );
+
+                                        const lessonName =
+                                            language === "fa"
+                                                ? lesson.faTitle
+                                                : lesson.title;
+
+                                        return language === "fa"
+                                            ? `📚 درس ${lessonId}: ${lessonName} — ${result.correct}/${result.total} (${lessonAccuracy}%)`
+                                            : `📚 Lesson ${lessonId}: ${lessonName} — ${result.correct}/${result.total} (${lessonAccuracy}%)`;
+                                    },
+                                )
+                                .join("\n");
+
+                        const weakLessons =
+                            Object.entries(
+                                lessonResults,
+                            )
+                                .filter(
+                                    ([, result]) =>
+                                        result.correct /
+                                        result.total <
+                                        0.6,
+                                )
+                                .sort(
+                                    ([, a], [, b]) =>
+                                        a.correct / a.total -
+                                        b.correct / b.total,
+                                )
+                                .map(
+                                    ([lessonId, result]) => {
+                                        const lesson =
+                                            lessons.find(
+                                                (lesson) =>
+                                                    lesson.id ===
+                                                    Number(
+                                                        lessonId,
+                                                    ),
+                                            );
+
+                                        const lessonName =
+                                            language === "fa"
+                                                ? lesson.faTitle
+                                                : lesson.title;
+
+                                        const lessonAccuracy =
+                                            Math.round(
+                                                (result.correct /
+                                                    result.total) *
+                                                100,
+                                            );
+
+                                        return language === "fa"
+                                            ? `📚 ${lessonName} — ${lessonAccuracy}%`
+                                            : `📚 ${lessonName} — ${lessonAccuracy}%`;
+                                    },
+                                )
+                                .join("\n");
+
+                        await ensureProgress(
+                            chatId,
+                            env,
+                        );
+
+                        const progress =
+                            await env.learning_js_bot_db
+                                .prepare(
+                                    "SELECT best_accuracy FROM progress WHERE telegram_id = ?",
+                                )
+                                .bind(String(chatId))
+                                .first();
+
+                        const previousBest =
+                            progress?.best_accuracy || 0;
+
+                        const bestAccuracy =
+                            Math.max(
+                                previousBest,
+                                accuracy,
+                            );
+
+                        await env.learning_js_bot_db
+                            .prepare(
+                                "UPDATE progress SET quizzes_completed = quizzes_completed + 1, best_accuracy = ? WHERE telegram_id = ?",
+                            )
+                            .bind(
+                                bestAccuracy,
+                                String(chatId),
+                            )
+                            .run();
+
                         await deleteQuizSession(
                             chatId,
                             env,
                         );
 
+                        const weakAreas =
+                            weakLessons ||
+                            (language === "fa"
+                                ? "نداری! عملکردت در همه درس‌ها خوب بود. 🎉"
+                                : "None! You performed well across all lessons. 🎉");
+
                         await sendMessage(
                             chatId,
                             env,
                             language === "fa"
-                                ? `${resultText}\n\n${explanation}\n\n🏆 آزمون تمام شد!\n\n🎯 امتیاز: ${quiz.score}/${quiz.questions.length}\n📊 دقت: ${accuracy}%`
-                                : `${resultText}\n\n${explanation}\n\n🏆 Quiz Complete!\n\n🎯 Score: ${quiz.score}/${quiz.questions.length}\n📊 Accuracy: ${accuracy}%`,
+                                ? `${resultText}\n\n${explanation}\n\n🏆 آزمون تمام شد!\n\n🎯 امتیاز: ${quiz.score}/${quiz.questions.length}\n📊 دقت: ${accuracy}%\n🎯 سطح: ${difficultyName}\n🏆 بهترین دقت: ${bestAccuracy}%\n\n━━━━━━━━━━━━━━━━━━\n\n📚 عملکرد درس‌ها\n\n${lessonPerformance}\n\n━━━━━━━━━━━━━━━━━━\n\n⚠️ نقاط ضعف\n\n${weakAreas}`
+                                : `${resultText}\n\n${explanation}\n\n🏆 Quiz Complete!\n\n🎯 Score: ${quiz.score}/${quiz.questions.length}\n📊 Accuracy: ${accuracy}%\n🎯 Difficulty: ${difficultyName}\n🏆 Best Accuracy: ${bestAccuracy}%\n\n━━━━━━━━━━━━━━━━━━\n\n📚 Lesson Performance\n\n${lessonPerformance}\n\n━━━━━━━━━━━━━━━━━━\n\n⚠️ Weak Areas\n\n${weakAreas}`,
                             {
                                 inline_keyboard: [
                                     [
@@ -1038,7 +1499,8 @@ export default {
                                                 language === "fa"
                                                     ? "🔄 آزمون جدید"
                                                     : "🔄 New Quiz",
-                                            callback_data: "quiz",
+                                            callback_data:
+                                                "quiz",
                                         },
                                     ],
                                     [
@@ -1047,7 +1509,8 @@ export default {
                                                 language === "fa"
                                                     ? "📊 پیشرفت من"
                                                     : "📊 My Progress",
-                                            callback_data: "progress",
+                                            callback_data:
+                                                "progress",
                                         },
                                     ],
                                     [
@@ -1056,7 +1519,8 @@ export default {
                                                 language === "fa"
                                                     ? "🏠 منوی اصلی"
                                                     : "🏠 Main Menu",
-                                            callback_data: "main_menu",
+                                            callback_data:
+                                                "main_menu",
                                         },
                                     ],
                                 ],
@@ -1215,6 +1679,73 @@ export default {
                     return new Response("OK");
                 }
 
+                if (callbackData === "choose_quiz_difficulty") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    await deleteQuizSession(
+                        chatId,
+                        env,
+                    );
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "🧠 آزمون JavaScript\n\nسطح سختی آزمون جدید را انتخاب کنید:"
+                            : "🧠 JavaScript Quiz\n\nChoose your new quiz difficulty:",
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🟢 آسان"
+                                                : "🟢 Easy",
+                                        callback_data:
+                                            "quiz_difficulty_easy",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🟡 متوسط"
+                                                : "🟡 Medium",
+                                        callback_data:
+                                            "quiz_difficulty_medium",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🔴 سخت"
+                                                : "🔴 Hard",
+                                        callback_data:
+                                            "quiz_difficulty_hard",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data:
+                                            "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
                 if (callbackData === "continue_quiz") {
                     await removeMessageKeyboard(
                         chatId,
@@ -1281,49 +1812,83 @@ export default {
                     return new Response("OK");
                 }
 
-                if (callbackData === "start_quiz") {
+                if (
+                    callbackData === "quiz_difficulty_easy" ||
+                    callbackData === "quiz_difficulty_medium" ||
+                    callbackData === "quiz_difficulty_hard"
+                ) {
                     await removeMessageKeyboard(
                         chatId,
                         callbackQuery.message.message_id,
                         env,
                     );
 
-                    const availableLessons = lessons.filter(
-                        (lesson) => lesson.id <= user.current_lesson,
-                    );
-
-                    const quizQuestions = availableLessons.map((lesson) => {
-                        const lessonQuestions = questions.filter(
-                            (question) => question.lessonId === lesson.id,
+                    const difficulty =
+                        callbackData.replace(
+                            "quiz_difficulty_",
+                            "",
                         );
 
-                        const randomQuestion =
-                            lessonQuestions[
-                            Math.floor(Math.random() * lessonQuestions.length)
-                            ];
-
-                        return randomQuestion;
-                    });
-
-                    const shuffledQuizQuestions = [...quizQuestions].sort(
-                        () => Math.random() - 0.5,
+                    const completedLessons = lessons.filter(
+                        (lesson) =>
+                            lesson.id < user.current_lesson,
                     );
+
+                    if (completedLessons.length === 0) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "🧠 آزمون\n\nهنوز درسی برای آزمون در دسترس نیست. 📚"
+                                : "🧠 Quiz\n\nThere are no completed lessons available for a quiz yet. 📚",
+                        );
+
+                        await sendMainMenu(chatId, env);
+
+                        return new Response("OK");
+                    }
+
+                    const quizQuestions =
+                        await selectQuizQuestions(
+                            chatId,
+                            completedLessons,
+                            difficulty,
+                            env,
+                        );
+
+                    if (quizQuestions.length === 0) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "❌ سؤالی با این سطح سختی برای درس‌های تکمیل‌شده پیدا نشد."
+                                : "❌ No questions were found for this difficulty in your completed lessons.",
+                        );
+
+                        await sendMainMenu(chatId, env);
+
+                        return new Response("OK");
+                    }
 
                     await setQuizSession(
                         chatId,
                         {
-                            questions: shuffledQuizQuestions,
+                            questions: quizQuestions,
                             currentQuestion: 0,
                             score: 0,
                         },
                         env,
                     );
 
-                    const quiz = await getQuizSession(chatId, env);
-                    const question = quiz.questions[0];
+                    const quiz =
+                        await getQuizSession(chatId, env);
+
+                    const question =
+                        quiz.questions[0];
 
                     const lesson = lessons.find(
-                        (lesson) => lesson.id === question.lessonId,
+                        (lesson) =>
+                            lesson.id === question.lessonId,
                     );
 
                     const options =
@@ -1341,23 +1906,38 @@ export default {
                             ? lesson.faTitle
                             : lesson.title;
 
-                    const optionButtons = options.map(
-                        (option, index) => [
-                            {
-                                text: option,
-                                callback_data: `quiz_answer_${question.id}_${index}`,
-                            },
-                        ],
-                    );
+                    const optionButtons =
+                        options.map(
+                            (option, index) => [
+                                {
+                                    text: option,
+                                    callback_data: `quiz_answer_${question.id}_${index}`,
+                                },
+                            ],
+                        );
+
+                    const difficultyName =
+                        language === "fa"
+                            ? difficulty === "easy"
+                                ? "آسان"
+                                : difficulty === "medium"
+                                    ? "متوسط"
+                                    : "سخت"
+                            : difficulty === "easy"
+                                ? "Easy"
+                                : difficulty === "medium"
+                                    ? "Medium"
+                                    : "Hard";
 
                     await sendMessage(
                         chatId,
                         env,
                         language === "fa"
-                            ? `🧠 آزمون JavaScript\n\nسؤال 1/${quiz.questions.length}\n📚 درس ${lesson.id}: ${lessonName}\n\n${questionText}`
-                            : `🧠 JavaScript Quiz\n\nQuestion 1/${quiz.questions.length}\n📚 Lesson ${lesson.id}: ${lessonName}\n\n${questionText}`,
+                            ? `🧠 آزمون JavaScript\n\n🎯 سطح: ${difficultyName}\n\nسؤال 1/${quiz.questions.length}\n📚 درس ${lesson.id}: ${lessonName}\n\n${questionText}`
+                            : `🧠 JavaScript Quiz\n\n🎯 Difficulty: ${difficultyName}\n\nQuestion 1/${quiz.questions.length}\n📚 Lesson ${lesson.id}: ${lessonName}\n\n${questionText}`,
                         {
-                            inline_keyboard: optionButtons,
+                            inline_keyboard:
+                                optionButtons,
                         },
                     );
 
@@ -1626,8 +2206,7 @@ export default {
                     const progress =
                         await env.learning_js_bot_db
                             .prepare(
-                                "SELECT questions_answered, correct_answers, quizzes_completed FROM progress WHERE telegram_id = ?",
-                            )
+                                "SELECT questions_answered, correct_answers, quizzes_completed, best_accuracy FROM progress WHERE telegram_id = ?",)
                             .bind(String(chatId))
                             .first();
 
@@ -1682,8 +2261,8 @@ export default {
                             `📝 آزمون‌های تکمیل‌شده: ${progress.quizzes_completed}\n` +
                             `❓ سؤالات پاسخ داده‌شده: ${progress.questions_answered}\n` +
                             `✅ پاسخ‌های صحیح: ${progress.correct_answers}\n` +
-                            `📊 دقت: ${accuracy}%\n\n` +
-                            "━━━━━━━━━━━━━━━━━━\n\n" +
+                            `📊 دقت: ${accuracy}%\n` +
+                            `🏆 بهترین دقت: ${progress.best_accuracy}%\n\n` +
                             "🧩 چالش روزانه\n\n" +
                             `🔥 استریک فعلی: ${challengeProgress.current_streak}\n` +
                             `🏆 بهترین استریک: ${challengeProgress.best_streak}\n` +

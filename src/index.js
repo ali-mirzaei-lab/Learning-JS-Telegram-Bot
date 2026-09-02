@@ -1003,13 +1003,7 @@ For the ideas, bugs, questionable decisions, and countless debugging sessions al
                     return new Response("OK");
                 }
 
-                if (callbackQuery.data === "introduction") {
-                    await removeMessageKeyboard(
-                        chatId,
-                        callbackQuery.message.message_id,
-                        env,
-                    );
-
+                async function sendIntroduction(chatId, env, showStartButton = false) {
                     const user = await getUser(chatId, env);
                     const language = user?.language || "en";
 
@@ -1139,16 +1133,50 @@ Good luck — and have fun coding! 🚀`,
                             inline_keyboard: [
                                 [
                                     {
-                                        text:
-                                            language === "fa"
+                                        text: showStartButton
+                                            ? language === "fa"
+                                                ? "🚀 شروع یادگیری"
+                                                : "🚀 Start Learning"
+                                            : language === "fa"
                                                 ? "🏠 منوی اصلی"
                                                 : "🏠 Main Menu",
-                                        callback_data: "main_menu",
+                                        callback_data: showStartButton
+                                            ? "start_learning"
+                                            : "main_menu",
                                     },
                                 ],
                             ],
                         },
                     );
+                }
+
+                if (callbackQuery.data === "introduction") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    await sendIntroduction(chatId, env);
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "start_learning") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            "UPDATE users SET has_seen_introduction = 1 WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .run();
+
+                    await sendMainMenu(chatId, env);
 
                     return new Response("OK");
                 }
@@ -1180,6 +1208,8 @@ Good luck — and have fun coding! 🚀`,
                             ? "fa"
                             : "en";
 
+                    const user = await getUser(chatId, env);
+
                     await env.learning_js_bot_db
                         .prepare(
                             "UPDATE users SET language = ? WHERE telegram_id = ?",
@@ -1198,7 +1228,11 @@ Good luck — and have fun coding! 🚀`,
                         confirmation,
                     );
 
-                    await sendMainMenu(chatId, env);
+                    if (user?.has_seen_introduction === 0) {
+                        await sendIntroduction(chatId, env, true);
+                    } else {
+                        await sendMainMenu(chatId, env);
+                    }
 
                     return new Response("OK");
                 }

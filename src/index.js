@@ -253,10 +253,17 @@ async function sendMessage(
     const body = {
         chat_id: chatId,
         text,
+        parse_mode: "HTML",
     };
 
     if (replyMarkup) {
         body.reply_markup = replyMarkup;
+    }
+
+    if (text.includes("<a href=")) {
+        body.link_preview_options = {
+            is_disabled: true,
+        };
     }
 
     const response = await fetch(
@@ -338,9 +345,15 @@ async function sendMainMenu(chatId, env) {
                     ],
                     [
                         {
+                            text: "ℹ️ درباره",
+                            callback_data: "about",
+                        },
+                    ],
+                    [
+                        {
                             text: "⚙️ تنظیمات",
                             callback_data: "settings",
-                        }
+                        },
                     ],
                 ]
                 : [
@@ -378,9 +391,15 @@ async function sendMainMenu(chatId, env) {
                     ],
                     [
                         {
+                            text: "ℹ️ About",
+                            callback_data: "about",
+                        },
+                    ],
+                    [
+                        {
                             text: "⚙️ Settings",
                             callback_data: "settings",
-                        }
+                        },
                     ],
                 ],
     });
@@ -759,6 +778,365 @@ export default {
                                         callback_data: "reset_progress",
                                     },
                                 ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "about") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "ℹ️ درباره"
+                            : "ℹ️ About",
+                        {
+                            inline_keyboard:
+                                language === "fa"
+                                    ? [
+                                        [
+                                            {
+                                                text: "📖 معرفی بات",
+                                                callback_data: "introduction",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "👨‍💻 درباره سازنده",
+                                                callback_data: "credits",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "🧭 راهنمای کامل",
+                                                callback_data: "complete_guide",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "🏠 منوی اصلی",
+                                                callback_data: "main_menu",
+                                            },
+                                        ],
+                                    ]
+                                    : [
+                                        [
+                                            {
+                                                text: "📖 Introduction",
+                                                callback_data: "introduction",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "👨‍💻 Credits",
+                                                callback_data: "credits",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "🧭 Complete Guide",
+                                                callback_data: "complete_guide",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "🏠 Main Menu",
+                                                callback_data: "main_menu",
+                                            },
+                                        ],
+                                    ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "credits") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `🧩 ربات آموزش جاوااسکریپت
+
+این پروژه رو همزمان با یادگیری جاوااسکریپت ساختم.
+
+━━━━━━━━━━━━━━
+
+👨‍💻 سازنده
+
+علی میرزایی
+&lt;Frontend Developer /&gt;
+
+━━━━━━━━━━━━━━
+
+🎯 درباره‌ی پروژه
+
+این ربات یه محیط ساده و کاربردیه برای یادگیری و تمرین جاوااسکریپت.
+
+سعی کردم یادگیری رو تا جای ممکن عملی و جذاب نگه دارم؛ یعنی هم یاد بگیری، هم خودت رو با سؤال و چالش امتحان کنی و هم روند پیشرفتت رو ببینی.
+
+━━━━━━━━━━━━━━
+
+⚙️ ساخته‌شده با
+
+JavaScript
+Cloudflare Workers
+Cloudflare D1
+Telegram Bot API
+
+━━━━━━━━━━━━━━
+
+🤝 با تشکر از
+
+استاد پارسا قربانیان و  Parnian Web Design School
+برای آموزش و همراهی در این مسیر. ❤️
+
+━━━━━━━━━━━━━━
+
+🔗 ارتباط با من
+
+<a href="https://github.com/ali-mirzaei-dev">GitHub</a> · <a href="https://www.linkedin.com/in/ali-mirzaei-dev/">LinkedIn</a> · <a href="https://instagram.com/ali.mirzaei.dev">Instagram</a>
+
+━━━━━━━━━━━━━━
+
+این پروژه با جاوااسکریپت، کلی کنجکاوی
+و مقدار خیلی زیادی دیباگ ساخته شده. 😭
+
+🤖 تشکر ویژه از Edward (ChatGPT)
+
+که توی ایده‌ها، باگ‌ها، تصمیم‌های عجیب
+و کلی جلسه‌ی دیباگ کنارم بود.`
+                            : `🧩 JavaScript Learning Bot
+
+Built while learning JavaScript.
+
+This project started as a way to practice JavaScript and gradually evolved into a complete learning system.
+
+━━━━━━━━━━━━━━
+
+👨‍💻 CREATOR
+
+Ali Mirzaei
+&lt;Frontend Developer /&gt;
+
+━━━━━━━━━━━━━━
+
+🎯 ABOUT THE PROJECT
+
+A hands-on JavaScript learning environment designed around lessons, quizzes, challenges, and practical learning.
+
+━━━━━━━━━━━━━━
+
+⚙️ BUILT WITH
+
+JavaScript
+Cloudflare Workers
+Cloudflare D1
+Telegram Bot API
+
+━━━━━━━━━━━━━━
+
+🤝 Mentor
+
+Parsa Ghorbanian & Parnian Web Design School
+Special thanks for the teaching and support throughout this journey. ❤️
+
+━━━━━━━━━━━━━━
+
+🔗 CONNECT
+
+<a href="https://github.com/ali-mirzaei-dev">GitHub</a> · <a href="https://www.linkedin.com/in/ali-mirzaei-dev/">LinkedIn</a> · <a href="https://instagram.com/ali.mirzaei.dev">Instagram</a>
+━━━━━━━━━━━━━━
+
+Built with JavaScript, curiosity, and a lot of debugging. 😭
+
+🤖 Special thanks to Edward (ChatGPT)
+
+For the ideas, bugs, questionable decisions, and countless debugging sessions along the way.`,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                            link_preview_options: {
+                                is_disabled: true,
+                            },
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "introduction") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `🚀 به ربات آموزش جاوااسکریپت خوش اومدی
+
+یه راه عملی برای یادگیری، تمرین و محک زدن مهارت‌های جاوااسکریپت.
+
+━━━━━━━━━━━━━━
+
+💡 چرا این ربات ساخته شد؟
+
+یادگیری جاوااسکریپت فقط خوندن سینتکس نیست.
+
+باید چیزهایی که یاد می‌گیری رو واقعاً استفاده کنی، اشتباه کنی، بفهمی چرا اشتباه کردی و دوباره امتحان کنی.
+
+این ربات با همین ایده ساخته شده؛ اینکه یادگیری جاوااسکریپت رو تا جای ممکن عملی‌تر و تعاملی‌تر کنه.
+
+━━━━━━━━━━━━━━
+
+📚 اینجا چه کارهایی می‌تونی انجام بدی؟
+
+📚 درس‌ها
+جاوااسکریپت رو قدم‌به‌قدم یاد بگیر و از مفاهیم پایه شروع کن.
+
+هر روز فقط یک درس در دسترسه تا بتونی روی یک موضوع تمرکز کنی و با عجله جلو نری.
+
+🧠 آزمون‌ها
+دانشت رو با سؤال‌های آسان، متوسط و سخت امتحان کن.
+
+🧩 چالش روزانه
+هر روز با یک چالش جدید جاوااسکریپت خودت رو محک بزن.
+
+هر روز فقط یک چالش می‌تونی انجام بدی؛ یه چالش کوچیک که هر روز دلیلی برای برگشتن و ادامه دادن بهت می‌ده.
+
+📊 پیشرفت من
+روند یادگیریت رو دنبال کن و ببین چقدر پیشرفت کردی.
+
+📖 JS Reference
+مفاهیم جاوااسکریپتی که یاد گرفتی رو سریع مرور کن.
+
+━━━━━━━━━━━━━━
+
+🎯 هدف
+
+نگران این نباش که همیشه جواب درست رو بدی.
+
+اشتباه کن.
+دوباره امتحان کن.
+بفهم چرا اشتباه کردی.
+به پیشرفتت ادامه بده.
+
+اشتباه کردن هم بخشی از یادگیریه.
+
+━━━━━━━━━━━━━━
+
+🚀 مسیر یادگیری
+
+یاد بگیر → تمرین کن → اشتباه کن → پیشرفت کن
+
+عجله نکن، کنجکاو بمون و از مسیر لذت ببر.
+
+موفق باشی و از کدنویسی لذت ببر! 🚀`
+                            : `🚀 Welcome to JavaScript Learning Bot
+
+A hands-on way to learn, practice, and test your JavaScript skills.
+
+━━━━━━━━━━━━━━
+
+💡 WHY THIS BOT EXISTS
+
+Learning JavaScript isn't just about reading syntax.
+
+You need to actually use what you learn, make mistakes, figure out why they happened, and try again.
+
+This bot was built around that idea — turning JavaScript learning into something more practical and interactive.
+
+━━━━━━━━━━━━━━
+
+📚 WHAT YOU CAN DO
+
+📚 Lessons
+Learn JavaScript step by step, starting with the fundamentals.
+
+Only one lesson is available each day, so you can focus on learning one topic at a time and avoid rushing through the material.
+
+🧠 Quizzes
+Test your knowledge with Easy, Medium, and Hard questions.
+
+🧩 Daily Challenge
+Take on a new JavaScript challenge every day.
+
+You can complete only one challenge per day, giving you a small challenge to come back to each day.
+
+📊 My Progress
+Keep track of your learning and see how you're improving.
+
+📖 JS Reference
+Quickly review the JavaScript concepts you've learned.
+
+━━━━━━━━━━━━━━
+
+🎯 THE GOAL
+
+Don't worry about getting everything right.
+
+Make mistakes.
+Try again.
+Understand why you were wrong.
+Keep improving.
+
+That's part of learning.
+
+━━━━━━━━━━━━━━
+
+🚀 THE JOURNEY
+
+Learn → Practice → Make mistakes → Improve
+
+Take your time, stay curious, and enjoy the process.
+
+Good luck — and have fun coding! 🚀`,
+                        {
+                            inline_keyboard: [
                                 [
                                     {
                                         text:

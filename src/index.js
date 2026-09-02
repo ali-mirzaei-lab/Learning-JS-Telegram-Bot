@@ -174,14 +174,14 @@ async function sendMainMenu(chatId, env) {
                             callback_data: "daily_lesson",
                         },
                         {
-                            text: "🧠 آزمون",
-                            callback_data: "quiz",
+                            text: "🧩 چالش امروز",
+                            callback_data: "challenge",
                         },
                     ],
                     [
                         {
-                            text: "💻 چالش",
-                            callback_data: "challenge",
+                            text: "🧠 آزمون",
+                            callback_data: "quiz",
                         },
                         {
                             text: "📊 پیشرفت من",
@@ -214,14 +214,14 @@ async function sendMainMenu(chatId, env) {
                             callback_data: "daily_lesson",
                         },
                         {
-                            text: "🧠 Quiz",
-                            callback_data: "quiz",
+                            text: "🧩 Daily Challenge",
+                            callback_data: "challenge",
                         },
                     ],
                     [
                         {
-                            text: "🧩 Daily Challenge",
-                            callback_data: "challenge",
+                            text: "🧠 Quiz",
+                            callback_data: "quiz",
                         },
                         {
                             text: "📊 My Progress",
@@ -437,7 +437,7 @@ export default {
                     );
 
                     const availableLessons = lessons.filter(
-                        (lesson) => lesson.id <= user.current_lesson,
+                        (lesson) => lesson.id < user.current_lesson,
                     );
 
                     const lessonButtons = availableLessons.map(
@@ -482,6 +482,33 @@ export default {
                         callbackQuery.message.message_id,
                         env,
                     );
+
+                    const today = getTodayDate();
+
+                    if (user.last_lesson_date === today) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "📚 درس امروز را قبلاً انجام داده‌اید.\n\nفردا برای درس بعدی برگردید!"
+                                : "📚 You already completed today's lesson.\n\nCome back tomorrow for the next lesson!",
+                            {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text:
+                                                language === "fa"
+                                                    ? "🏠 منوی اصلی"
+                                                    : "🏠 Main Menu",
+                                            callback_data: "main_menu",
+                                        },
+                                    ],
+                                ],
+                            },
+                        );
+
+                        return new Response("OK");
+                    }
 
                     const lesson = lessons.find(
                         (lesson) =>
@@ -577,40 +604,46 @@ export default {
                             ? lesson.faContent
                             : lesson.content;
 
+                    const keyboard = [];
+
+                    if (lessonId === user.current_lesson) {
+                        keyboard.push([
+                            {
+                                text:
+                                    language === "fa"
+                                        ? "❓ سؤال کوتاه"
+                                        : "❓ Quick Question",
+                                callback_data: `question_${lesson.id}`,
+                            },
+                        ]);
+                    }
+
+                    keyboard.push([
+                        {
+                            text:
+                                language === "fa"
+                                    ? "📚 همه درس‌ها"
+                                    : "📚 All Lessons",
+                            callback_data: "all_lessons",
+                        },
+                    ]);
+
+                    keyboard.push([
+                        {
+                            text:
+                                language === "fa"
+                                    ? "🏠 منوی اصلی"
+                                    : "🏠 Main Menu",
+                            callback_data: "main_menu",
+                        },
+                    ]);
+
                     await sendMessage(
                         chatId,
                         env,
                         `📚 ${title}\n\n${content}`,
                         {
-                            inline_keyboard: [
-                                [
-                                    {
-                                        text:
-                                            language === "fa"
-                                                ? "❓ سؤال کوتاه"
-                                                : "❓ Quick Question",
-                                        callback_data: `question_${lesson.id}`,
-                                    },
-                                ],
-                                [
-                                    {
-                                        text:
-                                            language === "fa"
-                                                ? "📚 همه درس‌ها"
-                                                : "📚 All Lessons",
-                                        callback_data: "all_lessons",
-                                    },
-                                ],
-                                [
-                                    {
-                                        text:
-                                            language === "fa"
-                                                ? "🏠 منوی اصلی"
-                                                : "🏠 Main Menu",
-                                        callback_data: "main_menu",
-                                    },
-                                ],
-                            ],
+                            inline_keyboard: keyboard,
                         },
                     );
 
@@ -766,10 +799,11 @@ export default {
                     if (nextLesson) {
                         await env.learning_js_bot_db
                             .prepare(
-                                "UPDATE users SET current_lesson = ? WHERE telegram_id = ?",
+                                "UPDATE users SET current_lesson = ?, last_lesson_date = ? WHERE telegram_id = ?",
                             )
                             .bind(
                                 nextLesson.id,
+                                getTodayDate(),
                                 String(chatId),
                             )
                             .run();
@@ -785,10 +819,11 @@ export default {
                         // Last lesson completed
                         await env.learning_js_bot_db
                             .prepare(
-                                "UPDATE users SET current_lesson = ? WHERE telegram_id = ?",
+                                "UPDATE users SET current_lesson = ?, last_lesson_date = ? WHERE telegram_id = ?",
                             )
                             .bind(
                                 lessons.length + 1,
+                                getTodayDate(),
                                 String(chatId),
                             )
                             .run();
@@ -1897,8 +1932,9 @@ export default {
                     await env.learning_js_bot_db
                         .prepare(
                             `UPDATE users
-                 SET current_lesson = 1,
-                     reset_confirmation = 0
+                SET current_lesson = 1,
+    reset_confirmation = 0,
+    last_lesson_date = NULL
                  WHERE telegram_id = ?`,
                         )
                         .bind(String(chatId))
@@ -1921,6 +1957,18 @@ export default {
                     await env.learning_js_bot_db
                         .prepare(
                             "DELETE FROM quiz_sessions WHERE telegram_id = ?",
+                        )
+                        .bind(String(chatId))
+                        .run();
+                    await env.learning_js_bot_db
+                        .prepare(
+                            `UPDATE challenge_progress
+         SET current_streak = 0,
+             best_streak = 0,
+             last_completed_date = NULL,
+             total_completed = 0,
+             correct_answers = 0
+         WHERE telegram_id = ?`,
                         )
                         .bind(String(chatId))
                         .run();

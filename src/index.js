@@ -91,21 +91,157 @@ function getTodayDate() {
     return new Date().toISOString().slice(0, 10);
 }
 
-function getDailyChallenge() {
-    const today = getTodayDate();
+async function getDailyChallenge(
+    chatId,
+    completedLessons,
+    env,
+) {
+    const eligibleLessons =
+        completedLessons.filter(
+            (lesson) =>
+                challenges.some(
+                    (challenge) =>
+                        challenge.lessonId ===
+                        lesson.id,
+                ),
+        );
 
-    const startDate = new Date("2026-01-01T00:00:00Z");
-    const currentDate = new Date(`${today}T00:00:00Z`);
+    if (eligibleLessons.length === 0) {
+        return null;
+    }
 
-    const daysSinceStart = Math.floor(
-        (currentDate - startDate) / (1000 * 60 * 60 * 24),
-    );
+    let lessonCycleRow =
+        await env.learning_js_bot_db
+            .prepare(
+                `SELECT MAX(cycle) AS cycle
+                 FROM challenge_lesson_history
+                 WHERE telegram_id = ?`,
+            )
+            .bind(String(chatId))
+            .first();
 
-    const challengeIndex =
-        ((daysSinceStart % challenges.length) + challenges.length) %
-        challenges.length;
+    let lessonCycle =
+        lessonCycleRow?.cycle || 1;
 
-    return challenges[challengeIndex];
+    let lessonHistory =
+        await env.learning_js_bot_db
+            .prepare(
+                `SELECT lesson_id
+                 FROM challenge_lesson_history
+                 WHERE telegram_id = ?
+                 AND cycle = ?`,
+            )
+            .bind(
+                String(chatId),
+                lessonCycle,
+            )
+            .all();
+
+    let usedLessonIds =
+        new Set(
+            lessonHistory.results.map(
+                (row) => Number(row.lesson_id),
+            ),
+        );
+
+    let availableLessons =
+        eligibleLessons.filter(
+            (lesson) =>
+                !usedLessonIds.has(lesson.id),
+        );
+
+    if (availableLessons.length === 0) {
+        lessonCycle += 1;
+
+        usedLessonIds = new Set();
+
+        availableLessons =
+            [...eligibleLessons];
+    }
+
+    const selectedLesson =
+        availableLessons[
+        Math.floor(
+            Math.random() *
+            availableLessons.length,
+        )
+        ];
+
+    let questionCycleRow =
+        await env.learning_js_bot_db
+            .prepare(
+                `SELECT MAX(cycle) AS cycle
+                 FROM challenge_question_history
+                 WHERE telegram_id = ?
+                 AND lesson_id = ?`,
+            )
+            .bind(
+                String(chatId),
+                selectedLesson.id,
+            )
+            .first();
+
+    let questionCycle =
+        questionCycleRow?.cycle || 1;
+
+    let questionHistory =
+        await env.learning_js_bot_db
+            .prepare(
+                `SELECT question_id
+                 FROM challenge_question_history
+                 WHERE telegram_id = ?
+                 AND lesson_id = ?
+                 AND cycle = ?`,
+            )
+            .bind(
+                String(chatId),
+                selectedLesson.id,
+                questionCycle,
+            )
+            .all();
+
+    let usedQuestionIds =
+        new Set(
+            questionHistory.results.map(
+                (row) => Number(row.question_id),
+            ),
+        );
+
+    const lessonChallenges =
+        challenges.filter(
+            (challenge) =>
+                challenge.lessonId ===
+                selectedLesson.id,
+        );
+
+    let availableQuestions =
+        lessonChallenges.filter(
+            (challenge) =>
+                !usedQuestionIds.has(
+                    challenge.id,
+                ),
+        );
+
+    if (availableQuestions.length === 0) {
+        questionCycle += 1;
+
+        availableQuestions =
+            [...lessonChallenges];
+    }
+
+    const selectedChallenge =
+        availableQuestions[
+        Math.floor(
+            Math.random() *
+            availableQuestions.length,
+        )
+        ];
+
+    return {
+        ...selectedChallenge,
+        lessonCycle,
+        questionCycle,
+    };
 }
 
 async function sendMessage(
@@ -1954,13 +2090,65 @@ export default {
                     const user = await getUser(chatId, env);
                     const language = user?.language || "en";
 
-                    const challenge = getDailyChallenge();
-                    const challengeProgress = await ensureChallengeProgress(
-                        chatId,
-                        env,
-                    );
+                    const challengeProgress =
+                        await ensureChallengeProgress(
+                            chatId,
+                            env,
+                        );
 
                     const today = getTodayDate();
+
+                    let challenge = null;
+
+                    const completedLessons = lessons.filter(
+                        (lesson) =>
+                            lesson.id < user.current_lesson &&
+                            challenges.some(
+                                (challenge) =>
+                                    challenge.lessonId === lesson.id,
+                            ),
+                    );
+
+                    if (
+                        challengeProgress.last_completed_date === today &&
+                        challengeProgress.current_challenge_id
+                    ) {
+                        const savedChallenge = challenges.find(
+                            (item) =>
+                                item.id ===
+                                challengeProgress.current_challenge_id,
+                        );
+
+                        if (savedChallenge) {
+                            challenge = {
+                                ...savedChallenge,
+                                lessonCycle:
+                                    challengeProgress.current_lesson_cycle || 1,
+                                questionCycle:
+                                    challengeProgress.current_question_cycle || 1,
+                            };
+                        }
+                    } else {
+                        challenge = await getDailyChallenge(
+                            chatId,
+                            completedLessons,
+                            env,
+                        );
+
+                        if (challenge) {
+                            await env.learning_js_bot_db
+                                .prepare(
+                                    `UPDATE challenge_progress
+                 SET current_challenge_id = ?
+                 WHERE telegram_id = ?`,
+                                )
+                                .bind(
+                                    challenge.id,
+                                    String(chatId),
+                                )
+                                .run();
+                        }
+                    }
 
                     if (challengeProgress.last_completed_date === today) {
                         await sendMessage(
@@ -1989,6 +2177,20 @@ export default {
                                 ],
                             },
                         );
+
+                        return new Response("OK");
+                    }
+
+                    if (!challenge) {
+                        await sendMessage(
+                            chatId,
+                            env,
+                            language === "fa"
+                                ? "❌ چالش مناسبی برای امروز پیدا نشد."
+                                : "❌ No suitable challenge was found for today.",
+                        );
+
+                        await sendMainMenu(chatId, env);
 
                         return new Response("OK");
                     }
@@ -2090,6 +2292,12 @@ export default {
 
                     const today = getTodayDate();
 
+                    const lessonCycle =
+                        challenge.lessonCycle || 1;
+
+                    const questionCycle =
+                        challenge.questionCycle || 1;
+
                     let currentStreak = challengeProgress.current_streak;
                     let bestStreak = challengeProgress.best_streak;
 
@@ -2141,6 +2349,44 @@ export default {
                             isCorrect ? 1 : 0,
                             String(chatId),
                         )
+                        .run();
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            `INSERT OR IGNORE INTO challenge_lesson_history
+         (telegram_id, lesson_id, cycle, used_at)
+         VALUES (?, ?, ?, ?)`,
+                        )
+                        .bind(
+                            String(chatId),
+                            challenge.lessonId,
+                            lessonCycle,
+                            Date.now(),
+                        )
+                        .run();
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            `INSERT OR IGNORE INTO challenge_question_history
+         (telegram_id, lesson_id, question_id, cycle, used_at)
+         VALUES (?, ?, ?, ?, ?)`,
+                        )
+                        .bind(
+                            String(chatId),
+                            challenge.lessonId,
+                            challenge.id,
+                            questionCycle,
+                            Date.now(),
+                        )
+                        .run();
+
+                    await env.learning_js_bot_db
+                        .prepare(
+                            `UPDATE challenge_progress
+         SET current_challenge_id = NULL
+         WHERE telegram_id = ?`,
+                        )
+                        .bind(String(chatId))
                         .run();
 
                     const explanation =

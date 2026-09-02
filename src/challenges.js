@@ -1,6 +1,7 @@
 export const challenges = [
     {
         id: 1,
+        lessonId: 3,
         type: "predict_output",
         difficulty: "easy",
         question: 'What will this code output?\n\nlet x = 5;\nconsole.log(x + "5");',
@@ -27,6 +28,7 @@ export const challenges = [
 
     {
         id: 2,
+        lessonId: 2,
         type: "predict_output",
         difficulty: "easy",
         question: "What will this code output?\n\nconsole.log(typeof null);",
@@ -53,6 +55,7 @@ export const challenges = [
 
     {
         id: 3,
+        lessonId: 3,
         type: "detective",
         difficulty: "easy",
         question:
@@ -80,6 +83,7 @@ export const challenges = [
 
     {
         id: 4,
+        lessonId: 3,
         type: "predict_output",
         difficulty: "easy",
         question:
@@ -107,6 +111,7 @@ export const challenges = [
 
     {
         id: 5,
+        lessonId: 1,
         type: "what_would_you_do",
         difficulty: "easy",
         question:
@@ -134,6 +139,7 @@ export const challenges = [
 
     {
         id: 6,
+        lessonId: 7,
         type: "predict_output",
         difficulty: "easy",
         question:
@@ -161,6 +167,7 @@ export const challenges = [
 
     {
         id: 7,
+        lessonId: 8,
         type: "spot_the_bug",
         difficulty: "easy",
         question:
@@ -175,7 +182,7 @@ export const challenges = [
         explanation:
             "user.age does not exist, so its value is undefined. Calling toUpperCase() on undefined causes a TypeError.",
         faQuestion:
-            'مشکل این کد چیست؟\n\nconst user = {\n    name: "Ali"\n};\n\nconsole.log(user.age.toUpperCase());',
+            'مشکل این کد چیست؟\n\nconst user = {\n    name: \"Ali\"\n};\n\nconsole.log(user.age.toUpperCase());',
         faOptions: [
             "Object نمی‌تواند property داشته باشد",
             "مقدار age برابر undefined است",
@@ -188,6 +195,7 @@ export const challenges = [
 
     {
         id: 8,
+        lessonId: 7,
         type: "one_liner",
         difficulty: "easy",
         question:
@@ -215,6 +223,7 @@ export const challenges = [
 
     {
         id: 9,
+        lessonId: 2,
         type: "predict_output",
         difficulty: "easy",
         question:
@@ -242,6 +251,7 @@ export const challenges = [
 
     {
         id: 10,
+        lessonId: 2,
         type: "detective",
         difficulty: "easy",
         question:
@@ -267,8 +277,10 @@ export const challenges = [
             'در Template Literal عبارت ${name} مقدار متغیر name را داخل String قرار می‌دهد.',
     },
 
+
     {
         id: 11,
+        lessonId: 7,
         type: "predict_output",
         difficulty: "medium",
         question:
@@ -296,6 +308,7 @@ export const challenges = [
 
     {
         id: 12,
+        lessonId: 7,
         type: "spot_the_bug",
         difficulty: "medium",
         question:
@@ -323,6 +336,7 @@ export const challenges = [
 
     {
         id: 13,
+        lessonId: 8,
         type: "predict_output",
         difficulty: "medium",
         question:
@@ -350,6 +364,7 @@ export const challenges = [
 
     {
         id: 14,
+        lessonId: 9,
         type: "predict_output",
         difficulty: "medium",
         question:
@@ -377,6 +392,7 @@ export const challenges = [
 
     {
         id: 15,
+        lessonId: 3,
         type: "detective",
         difficulty: "medium",
         question:
@@ -404,6 +420,7 @@ export const challenges = [
 
     {
         id: 16,
+        lessonId: 10,
         type: "what_would_you_do",
         difficulty: "medium",
         question:
@@ -431,6 +448,7 @@ export const challenges = [
 
     {
         id: 17,
+        lessonId: 3,
         type: "predict_output",
         difficulty: "medium",
         question:
@@ -458,6 +476,7 @@ export const challenges = [
 
     {
         id: 18,
+        lessonId: 7,
         type: "one_liner",
         difficulty: "medium",
         question:
@@ -485,6 +504,7 @@ export const challenges = [
 
     {
         id: 19,
+        lessonId: 6,
         type: "spot_the_bug",
         difficulty: "medium",
         question:
@@ -512,6 +532,7 @@ export const challenges = [
 
     {
         id: 20,
+        lessonId: 8,
         type: "predict_output",
         difficulty: "medium",
         question:
@@ -539,6 +560,7 @@ export const challenges = [
 
     {
         id: 21,
+        lessonId: 2,
         type: "predict_output",
         difficulty: "hard",
         question:
@@ -566,6 +588,7 @@ export const challenges = [
 
     {
         id: 22,
+        lessonId: 3,
         type: "predict_output",
         difficulty: "hard",
         question:
@@ -593,6 +616,7 @@ export const challenges = [
 
     {
         id: 23,
+        lessonId: 9,
         type: "spot_the_bug",
         difficulty: "hard",
         question:
@@ -620,6 +644,7 @@ export const challenges = [
 
     {
         id: 24,
+        lessonId: 8,
         type: "detective",
         difficulty: "hard",
         question:
@@ -647,6 +672,7 @@ export const challenges = [
 
     {
         id: 25,
+        lessonId: 3,
         type: "predict_output",
         difficulty: "hard",
         question:
@@ -674,6 +700,7 @@ export const challenges = [
 
     {
         id: 26,
+        lessonId: 8,
         type: "one_liner",
         difficulty: "hard",
         question:
@@ -701,6 +728,7 @@ export const challenges = [
 
     {
         id: 27,
+        lessonId: 8,
         type: "predict_output",
         difficulty: "hard",
         question:
@@ -728,6 +756,7 @@ export const challenges = [
 
     {
         id: 28,
+        lessonId: 7,
         type: "detective",
         difficulty: "hard",
         question:
@@ -755,6 +784,7 @@ export const challenges = [
 
     {
         id: 29,
+        lessonId: 6,
         type: "predict_output",
         difficulty: "hard",
         question:
@@ -782,6 +812,7 @@ export const challenges = [
 
     {
         id: 30,
+        lessonId: 7,
         type: "detective",
         difficulty: "hard",
         question:
@@ -806,4 +837,237 @@ export const challenges = [
         faExplanation:
             'در اینجا reduce() مقادیر Array را از مقدار اولیه 0 جمع می‌کند و نتیجه نهایی برابر 10 خواهد بود.',
     },
+
+    {
+        id: 31,
+        lessonId: 1,
+        type: "Code Output",
+        difficulty: "Easy",
+        question: "What will be printed?\n\nlet score = 10;\nscore = 20;\nconsole.log(score);",
+        options: [
+            "10",
+            "20",
+            "undefined",
+            "Error",
+        ],
+        correctAnswer: 1,
+        explanation: "The variable score is first assigned 10 and then reassigned to 20, so console.log(score) prints 20.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nlet score = 10;\nscore = 20;\nconsole.log(score);",
+        faOptions: [
+            "10",
+            "20",
+            "undefined",
+            "خطا",
+        ],
+        faExplanation: "متغیر score ابتدا مقدار 10 می‌گیرد و سپس مقدار آن به 20 تغییر می‌کند، بنابراین console.log(score) مقدار 20 را چاپ می‌کند.",
+    },
+    {
+        id: 32,
+        lessonId: 1,
+        type: "Code Output",
+        difficulty: "Medium",
+        question: "What will be printed?\n\nconst name = \"Ali\";\nlet message = name;\nmessage = \"Hello \" + message;\nconsole.log(message);",
+        options: [
+            "Ali",
+            "Hello",
+            "Hello Ali",
+            "Ali Hello",
+        ],
+        correctAnswer: 2,
+        explanation: "message first receives the value of name, which is \"Ali\", and then \"Hello \" is added before it.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nconst name = \"Ali\";\nlet message = name;\nmessage = \"Hello \" + message;\nconsole.log(message);",
+        faOptions: [
+            "Ali",
+            "Hello",
+            "Hello Ali",
+            "Ali Hello",
+        ],
+        faExplanation: "متغیر message ابتدا مقدار name یعنی \"Ali\" را می‌گیرد و سپس عبارت \"Hello \" به ابتدای آن اضافه می‌شود.",
+    },
+    {
+        id: 33,
+        lessonId: 1,
+        type: "Code Output",
+        difficulty: "Hard",
+        question: "What will be printed?\n\nlet x = 5;\nlet y = x;\nx = 10;\nconsole.log(y);",
+        options: [
+            "5",
+            "10",
+            "15",
+            "undefined",
+        ],
+        correctAnswer: 0,
+        explanation: "When y = x runs, y receives the current value 5. Changing x afterward does not change y.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nlet x = 5;\nlet y = x;\nx = 10;\nconsole.log(y);",
+        faOptions: [
+            "5",
+            "10",
+            "15",
+            "undefined",
+        ],
+        faExplanation: "وقتی y = x اجرا می‌شود، مقدار فعلی x یعنی 5 در y قرار می‌گیرد. تغییر بعدی x به 10 مقدار y را تغییر نمی‌دهد.",
+    },
+    {
+        id: 34,
+        lessonId: 4,
+        type: "Conditionals",
+        difficulty: "Easy",
+        question: "What will be printed?\n\nconst age = 20;\n\nif (age >= 18) {\n    console.log(\"Adult\");\n} else {\n    console.log(\"Minor\");\n}",
+        options: [
+            "Adult",
+            "Minor",
+            "20",
+            "Nothing",
+        ],
+        correctAnswer: 0,
+        explanation: "The condition age >= 18 is true because age is 20, so the if block runs.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nconst age = 20;\n\nif (age >= 18) {\n    console.log(\"Adult\");\n} else {\n    console.log(\"Minor\");\n}",
+        faOptions: [
+            "Adult",
+            "Minor",
+            "20",
+            "هیچ چیز",
+        ],
+        faExplanation: "شرط age >= 18 درست است چون مقدار age برابر 20 است، بنابراین کد داخل بخش if اجرا می‌شود.",
+    },
+    {
+        id: 35,
+        lessonId: 4,
+        type: "Conditionals",
+        difficulty: "Medium",
+        question: "What will be printed?\n\nconst score = 75;\n\nif (score >= 90) {\n    console.log(\"A\");\n} else if (score >= 70) {\n    console.log(\"B\");\n} else {\n    console.log(\"C\");\n}",
+        options: [
+            "A",
+            "B",
+            "C",
+            "75",
+        ],
+        correctAnswer: 1,
+        explanation: "75 is not at least 90, but it is at least 70, so the else if block runs and prints B.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nconst score = 75;\n\nif (score >= 90) {\n    console.log(\"A\");\n} else if (score >= 70) {\n    console.log(\"B\");\n} else {\n    console.log(\"C\");\n}",
+        faOptions: [
+            "A",
+            "B",
+            "C",
+            "75",
+        ],
+        faExplanation: "مقدار 75 حداقل 90 نیست، اما حداقل 70 است؛ بنابراین بخش else if اجرا شده و B چاپ می‌شود.",
+    },
+
+    {
+        id: 36,
+        lessonId: 4,
+        type: "Conditionals",
+        difficulty: "Medium",
+        question: "What will be printed?\n\nconst temperature = 25;\n\nif (temperature > 30) {\n    console.log(\"Hot\");\n} else if (temperature >= 20) {\n    console.log(\"Warm\");\n} else {\n    console.log(\"Cold\");\n}",
+        options: [
+            "Hot",
+            "Warm",
+            "Cold",
+            "25",
+        ],
+        correctAnswer: 1,
+        explanation: "25 is not greater than 30, but it is greater than or equal to 20, so the else if block runs.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\ntemperature = 25 است.\n\nاگر temperature بزرگ‌تر از 30 باشد، Hot چاپ می‌شود؛ اگر حداقل 20 باشد، Warm چاپ می‌شود؛ در غیر این صورت Cold چاپ می‌شود.",
+        faOptions: [
+            "Hot",
+            "Warm",
+            "Cold",
+            "25",
+        ],
+        faExplanation: "مقدار 25 بزرگ‌تر از 30 نیست، اما بزرگ‌تر یا مساوی 20 است، بنابراین بخش else if اجرا می‌شود و Warm چاپ می‌شود.",
+    },
+    {
+        id: 37,
+        lessonId: 4,
+        type: "Conditionals",
+        difficulty: "Hard",
+        question: "What will be printed?\n\nconst x = 10;\nconst y = 5;\n\nif (x > 5 && y > 10) {\n    console.log(\"A\");\n} else if (x > 5 || y > 10) {\n    console.log(\"B\");\n} else {\n    console.log(\"C\");\n}",
+        options: [
+            "A",
+            "B",
+            "C",
+            "Nothing",
+        ],
+        correctAnswer: 1,
+        explanation: "The first condition is false because y > 10 is false. The second condition is true because x > 5 is true, so B is printed.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nx برابر 10 و y برابر 5 است.\n\nاگر x بزرگ‌تر از 5 و y بزرگ‌تر از 10 باشند، A چاپ می‌شود. در غیر این صورت اگر یکی از این دو شرط درست باشد، B چاپ می‌شود.",
+        faOptions: [
+            "A",
+            "B",
+            "C",
+            "Nothing",
+        ],
+        faExplanation: "شرط اول درست نیست چون y > 10 نادرست است. شرط دوم درست است چون x > 5 درست است، بنابراین B چاپ می‌شود.",
+    },
+    {
+        id: 38,
+        lessonId: 5,
+        type: "Loops",
+        difficulty: "Easy",
+        question: "What will be printed?\n\nfor (let i = 0; i < 3; i++) {\n    console.log(i);\n}",
+        options: [
+            "0 1 2",
+            "1 2 3",
+            "0 1 2 3",
+            "1 2",
+        ],
+        correctAnswer: 0,
+        explanation: "The loop starts at 0 and continues while i < 3, so it prints 0, 1, and 2.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nfor (let i = 0; i < 3; i++) {\n    console.log(i);\n}",
+        faOptions: [
+            "0 1 2",
+            "1 2 3",
+            "0 1 2 3",
+            "1 2",
+        ],
+        faExplanation: "حلقه از 0 شروع می‌شود و تا زمانی که i کوچک‌تر از 3 باشد ادامه پیدا می‌کند، بنابراین 0، 1 و 2 چاپ می‌شوند.",
+    },
+    {
+        id: 39,
+        lessonId: 5,
+        type: "Loops",
+        difficulty: "Medium",
+        question: "What will be printed?\n\nlet total = 0;\n\nfor (let i = 1; i <= 4; i++) {\n    total += i;\n}\n\nconsole.log(total);",
+        options: [
+            "4",
+            "6",
+            "10",
+            "15",
+        ],
+        correctAnswer: 2,
+        explanation: "The loop adds 1 + 2 + 3 + 4 to total, giving 10.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nlet total = 0;\n\nfor (let i = 1; i <= 4; i++) {\n    total += i;\n}\n\nconsole.log(total);",
+        faOptions: [
+            "4",
+            "6",
+            "10",
+            "15",
+        ],
+        faExplanation: "حلقه اعداد 1 تا 4 را به total اضافه می‌کند: 1 + 2 + 3 + 4 برابر با 10 است.",
+    },
+    {
+        id: 40,
+        lessonId: 5,
+        type: "Loops",
+        difficulty: "Hard",
+        question: "What will be printed?\n\nfor (let i = 1; i <= 5; i++) {\n    if (i === 3) {\n        continue;\n    }\n    console.log(i);\n}",
+        options: [
+            "1 2 3 4 5",
+            "1 2 4 5",
+            "1 2 3",
+            "3 4 5",
+        ],
+        correctAnswer: 1,
+        explanation: "When i equals 3, continue skips the rest of that iteration, so 3 is not printed. The other values are printed.",
+        faQuestion: "چه چیزی چاپ می‌شود؟\n\nfor (let i = 1; i <= 5; i++) {\n    if (i === 3) {\n        continue;\n    }\n    console.log(i);\n}",
+        faOptions: [
+            "1 2 3 4 5",
+            "1 2 4 5",
+            "1 2 3",
+            "3 4 5",
+        ],
+        faExplanation: "وقتی i برابر 3 می‌شود، دستور continue ادامه همان تکرار را رد می‌کند، بنابراین 3 چاپ نمی‌شود و بقیه اعداد چاپ می‌شوند.",
+    },
+
 ];

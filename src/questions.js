@@ -1882,7 +1882,6 @@ export const questions = [
             "ضرب و انتساب",
             "تقسیم و انتساب",
         ],
-        correctAnswer: 1,
         faExplanation:
             "عملگر += یک مقدار را به مقدار فعلی متغیر اضافه می‌کند و نتیجه را دوباره به همان متغیر اختصاص می‌دهد.",
     },
@@ -2058,7 +2057,6 @@ export const questions = [
             "score *= 5",
             "score -= 5",
         ],
-        correctAnswer: 1,
         faExplanation:
             "عملگر += مقدار 5 را به مقدار فعلی score اضافه کرده و نتیجه جدید را دوباره به score اختصاص می‌دهد.",
     },
@@ -4041,8 +4039,6 @@ export const questions = [
             "هیچ چیزی",
             "فقط Ali",
         ],
-        explanation:
-            "The function first logs username, which is Ali, and then logs age, which is 25.",
         faExplanation:
             "تابع ابتدا username یعنی Ali و سپس age یعنی 25 را نمایش می‌دهد.",
     },
@@ -4068,7 +4064,7 @@ export const questions = [
             "تعریف تابع آن را حذف می‌کند و فراخوانی آن را ایجاد می‌کند",
             "تعریف و فراخوانی تابع همیشه دقیقاً یک معنی دارند",
         ],
-        explanation:
+        faExplanation:
             "تعریف کردن تابع آن را ایجاد می‌کند و کد آن را مشخص می‌کند، در حالی که فراخوانی تابع باعث اجرای آن کد می‌شود.",
     },
 
@@ -4269,7 +4265,7 @@ export const questions = [
             "100 سه بار",
             "هیچ چیزی",
         ],
-        explanation:
+        faExplanation:
             "تابع یک بار تعریف شده اما سه بار فراخوانی شده است، بنابراین 100 سه بار نمایش داده می‌شود.",
     },
     {
@@ -4294,7 +4290,7 @@ export const questions = [
             "function openMenu() { ... }",
             "Menu opened!",
         ],
-        explanation:
+        faExplanation:
             "تابع openMenu با کلمه کلیدی function و بدنه کد آن تعریف شده است.",
     },
     {
@@ -4319,7 +4315,7 @@ export const questions = [
             "فقط Lesson started!",
             "هیچ چیزی",
         ],
-        explanation:
+        faExplanation:
             "فراخوانی اول تابع Lesson started! را نمایش می‌دهد، سپس Keep learning! نمایش داده می‌شود و فراخوانی دوم دوباره Lesson started! را نمایش می‌دهد.",
     },
 
@@ -4821,7 +4817,7 @@ export const questions = [
             "10 و Hello!",
             "هیچ چیزی",
         ],
-        explanation:
+        faExplanation:
             "تابع مقدار 10 را برمی‌گرداند و بلافاصله تمام می‌شود، بنابراین دستور console.log بعد از return اجرا نمی‌شود.",
     },
 
@@ -5451,8 +5447,6 @@ console.log(result + 10);`,
             "25",
             "30",
         ],
-        explanation:
-            "تابع multiply(4, 5) مقدار 20 را برمی‌گرداند و با اضافه کردن 10 نتیجه 30 می‌شود.",
         faExplanation:
             "تابع multiply(4, 5) مقدار 20 را برمی‌گرداند و با اضافه کردن 10 نتیجه 30 می‌شود.",
     },
@@ -8272,8 +8266,6 @@ let user = {
             'user["age"]',
             "user.name()",
         ],
-        explanation:
-            'user["name"] از Bracket Notation برای دسترسی به Property به نام name استفاده می‌کند.',
         faExplanation:
             'user["name"] از Bracket Notation برای دسترسی به Property به نام name استفاده می‌کند.',
     },
@@ -8857,7 +8849,7 @@ console.log(user.age);`,
             "age",
             "undefined",
         ],
-        explanation:
+        faExplanation:
             "متغیر property مقدار age را دارد، بنابراین user[property] همان user.age است و مقدار آن به 30 تغییر می‌کند.",
     },
 
@@ -9977,8 +9969,7 @@ console.log(city);`,
             "Baku",
             "undefined",
         ],
-        correctAnswer: 2,
-        explanation:
+        faExplanation:
             "در این Destructuring، ابتدا profile و سپس Property مربوط به city استخراج می‌شود و مقدار آن Baku است.",
     },
 
@@ -12483,8 +12474,6 @@ document.body.prepend(second);`,
             "فقط First",
             "فقط Second",
         ],
-        explanation:
-            "ابتدا first با append() اضافه می‌شود و سپس second با prepend() قبل از first قرار می‌گیرد.",
         faExplanation:
             "ابتدا first با append() اضافه می‌شود و سپس second با prepend() قبل از first قرار می‌گیرد.",
     },
@@ -12770,8 +12759,6 @@ button.addEventListener("click", () => {
             "A و B نمایش داده می‌شوند",
             "هیچ چیزی نمایش داده نمی‌شود",
         ],
-        explanation:
-            "هر دو Listener برای Event مربوط به click ثبت شده‌اند، بنابراین هر دو Callback اجرا می‌شوند.",
         faExplanation:
             "هر دو Listener برای Event مربوط به click ثبت شده‌اند، بنابراین هر دو Callback اجرا می‌شوند.",
     },
@@ -12817,8 +12804,6 @@ button.addEventListener("click", () => {
             "2",
             "کد با خطا متوقف می‌شود",
         ],
-        explanation:
-            "هر دو Listener برای یک click اجرا می‌شوند. ابتدا count به 1 افزایش پیدا می‌کند و سپس مقدار 1 نمایش داده می‌شود.",
         faExplanation:
             "هر دو Listener برای یک click اجرا می‌شوند. ابتدا count به 1 افزایش پیدا می‌کند و سپس مقدار 1 نمایش داده می‌شود.",
     },
@@ -12989,8 +12974,6 @@ input.addEventListener("input", () => {
             "Form ارسال می‌شود",
             "تا زمان Reload صفحه هیچ اتفاقی نمی‌افتد",
         ],
-        explanation:
-            'با تغییر مقدار Input، رویداد "input" اجرا می‌شود و مقدار فعلی نمایش داده می‌شود.',
         faExplanation:
             'با تغییر مقدار Input، رویداد "input" اجرا می‌شود و مقدار فعلی نمایش داده می‌شود.',
     },
@@ -13016,8 +12999,6 @@ input.addEventListener("input", () => {
             "تغییر فایل‌های CSS",
             "حذف همه Listenerها",
         ],
-        explanation:
-            "Event Object اطلاعات مربوط به Event رخ‌داده را در اختیار Function قرار می‌دهد.",
         faExplanation:
             "Event Object اطلاعات مربوط به Event رخ‌داده را در اختیار Function قرار می‌دهد.",
     },
@@ -13119,8 +13100,6 @@ button.addEventListener("click", (event) => {
             "مقدار برگشتی Callback",
             "نام Event",
         ],
-        explanation:
-            "پارامتر event همان Event Object است که هنگام رخ دادن click به Callback داده می‌شود.",
         faExplanation:
             "پارامتر event همان Event Object است که هنگام رخ دادن click به Callback داده می‌شود.",
     },
@@ -13437,8 +13416,6 @@ localStorage.removeItem("username");`,
             "تمام داده‌های Local Storage حذف می‌شوند",
             "مرورگر Local Storage را می‌بندد",
         ],
-        explanation:
-            'متد removeItem("username") فقط موردی را که با کلید username ذخیره شده است حذف می‌کند.',
         faExplanation:
             'متد removeItem("username") فقط موردی را که با کلید username ذخیره شده است حذف می‌کند.',
     },
@@ -13706,8 +13683,6 @@ fetch("/users")
             "کاربران را از Server حذف می‌کند",
             "داده کاربران را به صورت خودکار به HTML تبدیل می‌کند",
         ],
-        explanation:
-            "کد یک Request ایجاد می‌کند، Response را به JSON تبدیل می‌کند و مقدار JavaScript حاصل را نمایش می‌دهد.",
         faExplanation:
             "کد یک Request ایجاد می‌کند، Response را به JSON تبدیل می‌کند و مقدار JavaScript حاصل را نمایش می‌دهد.",
     },
@@ -13743,8 +13718,6 @@ fetch("/users", {
             "داده JSON را دریافت و به صورت خودکار Parse می‌کند",
             "Object را در Local Storage ذخیره می‌کند",
         ],
-        explanation:
-            'در این ساختار method روی "POST" است، نوع داده JSON مشخص شده و JSON.stringify() Body مربوط به Request را ایجاد می‌کند.',
         faExplanation:
             'در این ساختار method روی "POST" است، نوع داده JSON مشخص شده و JSON.stringify() Body مربوط به Request را ایجاد می‌کند.',
     },

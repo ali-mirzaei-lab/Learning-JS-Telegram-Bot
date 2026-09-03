@@ -871,6 +871,812 @@ export default {
                     return new Response("OK");
                 }
 
+                if (callbackQuery.data === "complete_guide") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? "🧭 راهنمای کامل\n\nدرباره‌ی کدوم بخش می‌خوای بیشتر بدونی؟"
+                            : "🧭 Complete Guide\n\nWhat would you like to learn more about?",
+                        {
+                            inline_keyboard:
+                                language === "fa"
+                                    ? [
+                                        [
+                                            {
+                                                text: "📚 درس‌ها",
+                                                callback_data: "guide_lessons",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "🧠 آزمون",
+                                                callback_data: "guide_quiz",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "🧩 چالش روزانه",
+                                                callback_data: "guide_challenge",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "📊 پیشرفت من",
+                                                callback_data: "guide_progress",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "📖 JS Reference",
+                                                callback_data: "guide_reference",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "⬅️ درباره",
+                                                callback_data: "about",
+                                            },
+                                        ],
+                                    ]
+                                    : [
+                                        [
+                                            {
+                                                text: "📚 Lessons",
+                                                callback_data: "guide_lessons",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "🧠 Quiz",
+                                                callback_data: "guide_quiz",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "🧩 Daily Challenge",
+                                                callback_data: "guide_challenge",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "📊 My Progress",
+                                                callback_data: "guide_progress",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "📖 JS Reference",
+                                                callback_data: "guide_reference",
+                                            },
+                                        ],
+                                        [
+                                            {
+                                                text: "⬅️ About",
+                                                callback_data: "about",
+                                            },
+                                        ],
+                                    ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "guide_lessons") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `📚 درس‌ها
+
+بخش درس‌ها جاییه که مسیر اصلی یادگیری جاوااسکریپتت رو دنبال می‌کنی.
+
+━━━━━━━━━━━━━━
+
+📅 درس روزانه
+
+هر روز یک درس جدید در دسترس قرار می‌گیره.
+
+می‌تونی هر بار روی یک موضوع تمرکز کنی و بدون عجله کل دوره رو جلو ببری.
+
+هر درس شامل:
+• یک موضوع جاوااسکریپت
+• یک توضیح کوتاه
+• ۱۰ سؤال تمرینی
+
+━━━━━━━━━━━━━━
+
+📈 پیشرفت
+
+بعد از تکمیل هر درس، پیشرفتت به‌صورت خودکار ذخیره می‌شه.
+
+درس‌های تکمیل‌شده روی بخش‌های دیگه‌ی سیستم یادگیری، از جمله Quiz 2.0، هم تأثیر می‌ذارن.
+
+━━━━━━━━━━━━━━
+
+📚 همه درس‌ها
+
+از بخش همه درس‌ها می‌تونی درس‌هایی که در دسترست قرار گرفتن رو ببینی و مطالب قبلی رو دوباره مرور کنی.
+
+━━━━━━━━━━━━━━
+
+🔗 ارتباط با بخش‌های دیگه
+
+درس‌ها پایه‌ی بخش‌های دیگه‌ی ربات هستن.
+
+یاد بگیر ← با سؤال‌ها تمرین کن ← در JS Reference مرور کن ← با Quiz خودت رو امتحان کن ← چالش روزانه رو انجام بده
+
+━━━━━━━━━━━━━━`
+                            : `📚 Lessons
+
+The Lessons section is where your main JavaScript learning journey happens.
+
+━━━━━━━━━━━━━━
+
+📅 DAILY LESSON
+
+A new lesson becomes available each day.
+
+You can focus on one topic at a time instead of rushing through the entire course.
+
+Each lesson contains:
+• A JavaScript topic
+• A short explanation
+• 10 practice questions
+
+━━━━━━━━━━━━━━
+
+📈 PROGRESS
+
+Once you complete a lesson, your progress is saved automatically.
+
+Your completed lessons also affect other parts of the learning system, including Quiz 2.0.
+
+━━━━━━━━━━━━━━
+
+📚 ALL LESSONS
+
+Use All Lessons to see the lessons you've unlocked and revisit previous material.
+
+━━━━━━━━━━━━━━
+
+🔗 CONNECTED FEATURES
+
+Lessons are the foundation of the rest of the bot.
+
+Learn a topic → Practice with questions → Review it in JS Reference → Test yourself with Quiz → Take on Daily Challenges
+
+━━━━━━━━━━━━━━`,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "⬅️ راهنمای کامل"
+                                                : "⬅️ Back to Guide",
+                                        callback_data: "complete_guide",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "guide_quiz") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `🧠 آزمون
+
+بخش آزمون جاییه که می‌تونی ببینی چقدر مفاهیم جاوااسکریپتی که یاد گرفتی رو واقعاً درک کردی.
+
+━━━━━━━━━━━━━━
+
+🎚️ سطح دشواری
+
+آزمون ۳.۰ سه سطح دشواری داره:
+
+🟢 آسان
+سؤال‌هایی که روی مفاهیم پایه تمرکز دارن.
+
+🟡 متوسط
+سؤال‌هایی که به درک قوی‌تری از مفاهیم نیاز دارن.
+
+🔴 سخت
+سؤال‌های چالش‌برانگیزتری که به درک عمیق‌تر و دقت بیشتری در حل مسئله نیاز دارن.
+
+━━━━━━━━━━━━━━
+
+🎯 انتخاب سؤال‌ها
+
+سیستم آزمون از درس‌هایی که تکمیل کردی برای ساخت مجموعه سؤال‌ها استفاده می‌کنه.
+
+سؤال‌ها از بین درس‌هایی که یاد گرفتی انتخاب می‌شن تا آزمون فقط روی یک موضوع متمرکز نباشه.
+
+سیستم همچنین سؤال‌هایی که قبلاً در هر سطح دشواری دیدی رو به خاطر می‌سپاره و تا زمانی که سؤال‌های موجود در اون سطح استفاده نشده باشن، از تکرار اون‌ها جلوگیری می‌کنه.
+
+━━━━━━━━━━━━━━
+
+📊 تعداد سؤال‌ها
+
+تعداد سؤال‌های هر آزمون به تعداد درس‌هایی که تکمیل کردی بستگی داره.
+
+هرچه درس‌های بیشتری رو کامل کنی، آزمون‌ها می‌تونن طولانی‌تر بشن؛ تا حداکثر ۱۲ سؤال.
+
+━━━━━━━━━━━━━━
+
+📈 نتیجه آزمون
+
+بعد از تموم کردن آزمون، می‌تونی این موارد رو ببینی:
+
+• امتیازت
+• دقت پاسخ‌ها
+• سطح دشواری آزمون
+• عملکردت در هر درس
+• نقاط ضعفت برای مرور بیشتر
+• بهترین رکورد دقتت
+
+━━━━━━━━━━━━━━
+
+💡 هدف
+
+هدف آزمون فقط گرفتن امتیاز بالا نیست.
+
+با آزمون می‌تونی بفهمی چه چیزهایی رو خوب یاد گرفتی، کجاها نیاز به تمرین بیشتری داری و چه موضوعاتی رو بهتره دوباره مرور کنی.
+
+━━━━━━━━━━━━━━`
+                            : `🧠 Quiz
+
+The Quiz section is where you test how well you understand the JavaScript topics you've learned.
+
+━━━━━━━━━━━━━━
+
+🎚️ DIFFICULTY
+
+Quiz 3.0 has three difficulty levels:
+
+🟢 Easy
+Questions focused on the fundamentals.
+
+🟡 Medium
+Questions that require a stronger understanding of the concepts.
+
+🔴 Hard
+More challenging questions that require deeper understanding and careful reasoning.
+
+━━━━━━━━━━━━━━
+
+🎯 HOW QUESTIONS ARE SELECTED
+
+The quiz uses your completed lessons to build the question pool.
+
+Questions are selected across the lessons you've learned, so the quiz doesn't focus on only one topic.
+
+The system also remembers which questions you've already seen at each difficulty level and avoids repeating them until the available questions have been used.
+
+━━━━━━━━━━━━━━
+
+📊 QUIZ SIZE
+
+The number of questions depends on how many lessons you've completed.
+
+As you complete more lessons, your quizzes can become longer, up to 12 questions.
+
+━━━━━━━━━━━━━━
+
+📈 YOUR RESULTS
+
+After finishing a quiz, you'll see:
+
+• Your score
+• Accuracy
+• Quiz difficulty
+• Performance by lesson
+• Weak areas to review
+• Your best accuracy
+
+━━━━━━━━━━━━━━
+
+💡 THE GOAL
+
+The quiz isn't just about getting a high score.
+
+Use it to find what you understand, discover where you need more practice, and identify the topics you should review.
+
+━━━━━━━━━━━━━━`,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "⬅️ راهنمای کامل"
+                                                : "⬅️ Back to Guide",
+                                        callback_data: "complete_guide",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "guide_challenge") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `🧩 چالش روزانه
+
+بخش چالش روزانه هر روز یه چالش کوچیک جاوااسکریپتی بهت می‌ده که حلش کنی.
+
+━━━━━━━━━━━━━━
+
+📅 یک چالش در روز
+
+هر روز فقط می‌تونی یک چالش رو کامل کنی.
+
+بعد از تکمیل چالش، باید تا روز بعد صبر کنی تا چالش جدیدی در دسترست قرار بگیره.
+
+━━━━━━━━━━━━━━
+
+🧠 یک نوع تمرین متفاوت
+
+چالش‌های روزانه کمی سخت‌تر از سؤال‌های معمولی آزمون هستن.
+
+این چالش‌ها نوع سؤال‌های متفاوتی دارن و از یک مجموعه سؤال جدا از Quiz 3.0 استفاده می‌کنن.
+
+یعنی قرار نیست همون سؤال‌های بخش آزمون رو فقط با یک شکل متفاوت دوباره ببینی.
+
+━━━━━━━━━━━━━━
+
+🎯 چرخش چالش‌ها
+
+چالش‌ها از بین موضوعاتی که یاد گرفتی انتخاب می‌شن.
+
+سیستم بین درس‌های در دسترست می‌چرخه تا مدام از یک موضوع خاص چالش نگیری.
+
+سؤال‌ها هم داخل هر درس می‌چرخن تا از تکرار غیرضروری جلوگیری بشه.
+
+━━━━━━━━━━━━━━
+
+🔥 استریک
+
+با انجام منظم چالش‌های روزانه می‌تونی استریک خودت رو بسازی.
+
+روندت این موارد رو ثبت می‌کنه:
+
+• استریک فعلی
+• بهترین استریک
+• تعداد کل چالش‌های تکمیل‌شده
+• تعداد کل پاسخ‌های درست
+
+━━━━━━━━━━━━━━
+
+💡 هدف
+
+هدف چالش روزانه این نیست که یه جلسه‌ی طولانی مطالعه داشته باشی.
+
+هر روز یه فرصت کوچیکه تا چیزهایی که یاد گرفتی رو به یاد بیاری، یک مسئله‌ی کمی سخت‌تر رو حل کنی و مهارت‌های جاوااسکریپتت رو فعال نگه داری.
+
+━━━━━━━━━━━━━━
+
+🚀 فردا برگرد
+
+یک چالش.
+یک قدم کوچیک.
+هر روز.
+
+به یادگیری ادامه بده و استریکت رو زنده نگه دار. 🔥`
+                            : `🧩 Daily Challenge
+
+The Daily Challenge gives you one small JavaScript challenge to complete each day.
+
+━━━━━━━━━━━━━━
+
+📅 ONE CHALLENGE A DAY
+
+You can complete only one challenge per day.
+
+Once you complete it, you'll need to wait until the next day for another challenge.
+
+━━━━━━━━━━━━━━
+
+🧠 A DIFFERENT KIND OF PRACTICE
+
+Daily Challenges are a bit trickier than regular quiz questions.
+
+They also use different question types and a separate question pool from Quiz 3.0.
+
+This means you won't simply get the same questions from the Quiz section in a different format.
+
+━━━━━━━━━━━━━━
+
+🎯 CHALLENGE ROTATION
+
+Challenges are selected from topics you've already learned.
+
+The system rotates through the available lessons so you don't keep getting challenges from the same topic.
+
+Questions also rotate within each lesson to avoid unnecessary repetition.
+
+━━━━━━━━━━━━━━
+
+🔥 YOUR STREAK
+
+Complete your daily challenges consistently to build a streak.
+
+Your progress keeps track of:
+
+• Current streak
+• Best streak
+• Total completed challenges
+• Total correct answers
+
+━━━━━━━━━━━━━━
+
+💡 THE GOAL
+
+The Daily Challenge isn't meant to be a long study session.
+
+It's a small daily opportunity to recall what you've learned, solve a slightly trickier problem, and keep your JavaScript skills active.
+
+━━━━━━━━━━━━━━
+
+🚀 COME BACK TOMORROW
+
+One challenge.
+One small step.
+Every day.
+
+Keep learning and keep the streak alive. 🔥`,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "⬅️ راهنمای کامل"
+                                                : "⬅️ Back to Guide",
+                                        callback_data: "complete_guide",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "guide_progress") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `📊 پیشرفت من
+
+بخش پیشرفت من یه نمای کلی از مسیر یادگیری جاوااسکریپتت بهت می‌ده.
+
+━━━━━━━━━━━━━━
+
+📚 پیشرفت یادگیری
+
+توی این بخش می‌تونی ببینی چند درس رو کامل کردی و چقدر از مسیر دوره رو جلو رفتی.
+
+پیشرفت درس‌هات همزمان با یادگیری به‌صورت خودکار ذخیره می‌شه.
+
+━━━━━━━━━━━━━━
+
+🧠 عملکرد در آزمون
+
+عملکردت در آزمون‌ها و میزان دقت پاسخ‌هات رو دنبال کن.
+
+همچنین می‌تونی بهترین رکورد دقتت رو ببینی و متوجه بشی کدوم بخش‌ها نیاز به تمرین بیشتری دارن.
+
+━━━━━━━━━━━━━━
+
+🔥 چالش روزانه
+
+فعالیتت در چالش‌های روزانه هم در روند پیشرفتت ثبت می‌شه.
+
+می‌تونی این موارد رو ببینی:
+
+• استریک فعلی
+• بهترین استریک
+• تعداد کل چالش‌های تکمیل‌شده
+• تعداد کل پاسخ‌های درست
+
+━━━━━━━━━━━━━━
+
+🎯 پیدا کردن نقاط ضعف
+
+عملکردت در هر درس بهت کمک می‌کنه بفهمی توی کدوم موضوعات جاوااسکریپت قوی‌تری و کدوم موضوعات رو بهتره دوباره مرور کنی.
+
+━━━━━━━━━━━━━━
+
+💡 هدف
+
+هدف بخش پیشرفت فقط نمایش چندتا عدد نیست.
+
+از این بخش استفاده کن تا روند یادگیریت رو بهتر بشناسی، پیشرفتت رو ببینی و تصمیم بگیری قدم بعدیت روی چه موضوعی باشه.
+
+━━━━━━━━━━━━━━`
+                            : `📊 My Progress
+
+The My Progress section gives you a clear overview of your JavaScript learning journey.
+
+━━━━━━━━━━━━━━
+
+📚 LEARNING PROGRESS
+
+See how many lessons you've completed and how far you've progressed through the course.
+
+Your lesson progress is saved automatically as you learn.
+
+━━━━━━━━━━━━━━
+
+🧠 QUIZ PERFORMANCE
+
+Track your quiz performance and see how accurately you're answering questions.
+
+You can also see your best accuracy and identify areas where you may need more practice.
+
+━━━━━━━━━━━━━━
+
+🔥 DAILY CHALLENGE
+
+Your progress also includes your Daily Challenge activity.
+
+You can see:
+
+• Current streak
+• Best streak
+• Total completed challenges
+• Total correct answers
+
+━━━━━━━━━━━━━━
+
+🎯 FIND YOUR WEAK AREAS
+
+Your quiz performance by lesson helps you identify which JavaScript topics you're strongest in and which ones could use more review.
+
+━━━━━━━━━━━━━━
+
+💡 THE GOAL
+
+My Progress isn't just about numbers.
+
+Use it to understand your learning, notice improvement over time, and decide what you should focus on next.
+
+━━━━━━━━━━━━━━`,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "⬅️ راهنمای کامل"
+                                                : "⬅️ Back to Guide",
+                                        callback_data: "complete_guide",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+                if (callbackQuery.data === "guide_reference") {
+                    await removeMessageKeyboard(
+                        chatId,
+                        callbackQuery.message.message_id,
+                        env,
+                    );
+
+                    const user = await getUser(chatId, env);
+                    const language = user?.language || "en";
+
+                    await sendMessage(
+                        chatId,
+                        env,
+                        language === "fa"
+                            ? `📖 JS Reference
+
+بخش مرجع جاوااسکریپت یه ابزار سریع برای مرور مفاهیمیه که یاد گرفتی.
+
+━━━━━━━━━━━━━━
+
+📚 مرور سریع
+
+از این بخش استفاده کن تا مفاهیم جاوااسکریپتی که قبلاً یاد گرفتی رو سریع مرور کنی، بدون اینکه دوباره کل درس رو بخونی.
+
+هر موضوع یه توضیح کوتاه از مفهوم و نکات مهمی که باید به خاطر داشته باشی داره.
+
+━━━━━━━━━━━━━━
+
+🧠 موضوعات یادگرفته‌شده
+
+این بخش روی موضوعات جاوااسکریپتی تمرکز داره که در ربات آموزش داده می‌شن.
+
+هرچقدر درس‌های بیشتری رو جلو ببری، مفاهیم بیشتری هم برای مرور در دسترست قرار می‌گیرن.
+
+━━━━━━━━━━━━━━
+
+🎯 چه زمانی استفاده کنیم؟
+
+وقتی این موقعیت‌ها پیش اومد، از مرجع استفاده کن:
+
+• وقتی به یه مرور سریع نیاز داری
+• وقتی یادت رفته یه مفهوم چطور کار می‌کنه
+• وقتی می‌خوای قبل از آزمون مطالب رو مرور کنی
+• وقتی می‌خوای سریع یه مفهوم جاوااسکریپتی رو بررسی کنی
+
+━━━━━━━━━━━━━━
+
+💡 هدف
+
+هدف این بخش جایگزین کردن درس‌ها نیست.
+
+این بخش یه راه سریعه برای اینکه مطالب رو دوباره یادت بیاری و مفاهیم مهم جاوااسکریپت رو همیشه دم دست داشته باشی.
+
+━━━━━━━━━━━━━━`
+                            : `📖 JS Reference
+
+The JS Reference is your quick JavaScript review tool.
+
+━━━━━━━━━━━━━━
+
+📚 QUICK REVIEW
+
+Use it to quickly review JavaScript concepts you've already learned without going back through the full lessons.
+
+Each topic gives you a concise explanation of the concept and the key points you need to remember.
+
+━━━━━━━━━━━━━━
+
+🧠 LEARNED TOPICS
+
+The Reference focuses on the JavaScript topics covered by the bot.
+
+As you progress through the lessons, you'll have more concepts available to review.
+
+━━━━━━━━━━━━━━
+
+🎯 WHEN TO USE IT
+
+Use the Reference when:
+
+• You need a quick refresher
+• You forgot how a concept works
+• You want to review before taking a quiz
+• You want to quickly check a JavaScript concept
+
+━━━━━━━━━━━━━━
+
+💡 THE GOAL
+
+The Reference isn't meant to replace the lessons.
+
+It's a quick way to refresh your memory and keep important JavaScript concepts close at hand.
+
+━━━━━━━━━━━━━━`,
+                        {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "⬅️ راهنمای کامل"
+                                                : "⬅️ Back to Guide",
+                                        callback_data: "complete_guide",
+                                    },
+                                ],
+                                [
+                                    {
+                                        text:
+                                            language === "fa"
+                                                ? "🏠 منوی اصلی"
+                                                : "🏠 Main Menu",
+                                        callback_data: "main_menu",
+                                    },
+                                ],
+                            ],
+                        },
+                    );
+
+                    return new Response("OK");
+                }
+
+
+
                 if (callbackQuery.data === "credits") {
                     await removeMessageKeyboard(
                         chatId,
